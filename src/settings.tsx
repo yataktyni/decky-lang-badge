@@ -13,6 +13,7 @@ import {
 } from "@decky/ui";
 import { t, resolveUiLanguage } from "./translations";
 import { useSettings, ThumbnailPosition } from "./hooks/useSettings";
+import { usePluginUpdate } from "./hooks/usePluginUpdate";
 import { clearBadgeStatusCache } from "./hooks/useBadgeStatus";
 import { SUPPORTED_LANGUAGES, TargetLanguageSetting, resolveTargetLanguage } from "./languages";
 import {
@@ -48,6 +49,7 @@ export const Settings: FC = () => {
     const [lbkStatus, setLbkStatus] = useState<LbkStatus | null>(() => getCachedLbkStatus());
     const [installingLbk, setInstallingLbk] = useState(false);
     const [lbkInstallMsg, setLbkInstallMsg] = useState<{ text: string; isError: boolean } | null>(null);
+    const { updateAvailable } = usePluginUpdate(true);
 
     // Ensure QAM panel always opens at the top instead of inheriting the plugin-list scroll offset
     useEffect(() => {
@@ -243,8 +245,26 @@ export const Settings: FC = () => {
                         <DialogButton style={tabButtonStyle("layout")} onClick={() => setActiveTab("layout")}>
                             {`📍 ${t("tab_layout", lang)}`}
                         </DialogButton>
-                        <DialogButton style={tabButtonStyle("info")} onClick={() => setActiveTab("info")}>
+                        <DialogButton
+                            style={{ ...tabButtonStyle("info"), position: "relative" }}
+                            onClick={() => setActiveTab("info")}
+                        >
                             {`🔗 ${t("tab_info", lang)}`}
+                            {updateAvailable && (
+                                <span
+                                    data-testid="info-tab-update-dot"
+                                    style={{
+                                        position: "absolute",
+                                        top: "4px",
+                                        right: "5px",
+                                        width: "7px",
+                                        height: "7px",
+                                        borderRadius: "50%",
+                                        background: "#facc15",
+                                        boxShadow: "0 0 6px rgba(250, 204, 21, 0.9)",
+                                    }}
+                                />
+                            )}
                         </DialogButton>
                     </Focusable>
                 </PanelSectionRow>

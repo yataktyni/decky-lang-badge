@@ -6,30 +6,21 @@ import { FaXTwitter } from "react-icons/fa6";
 import { call } from "@decky/api";
 import { t } from "../translations";
 import { LanguageConfig, resolveTargetLanguage } from "../languages";
+import {
+    FALLBACK_VERSION,
+    VersionInfo,
+    refreshPluginVersionInfo,
+    setPluginVersionInfo,
+    usePluginUpdate,
+} from "../hooks/usePluginUpdate";
 import { logger } from "../logger";
 
-declare const __PLUGIN_VERSION__: string | undefined;
-
 const log = logger.component("LinksSection");
-const FALLBACK_VERSION: string =
-    typeof __PLUGIN_VERSION__ !== "undefined" && __PLUGIN_VERSION__
-        ? __PLUGIN_VERSION__
-        : "unknown";
 
 interface LinksSectionProps {
     lang: string;
     openUrl: (url: string) => void;
     targetLang?: LanguageConfig;
-}
-
-interface VersionInfo {
-    current: string;
-    latest: string | null;
-    latest_tag?: string | null;
-    update_available: boolean;
-    source_ok?: boolean;
-    error?: string | null;
-    checked_at?: number;
 }
 
 interface UpdateResult {
@@ -45,14 +36,14 @@ const Divider: FC = () => (
     <div style={{
         width: "100%",
         height: "1px",
-        background: "rgba(255,255,255,0.15)",
-        margin: "12px 0"
+        background: "rgba(255,255,255,0.14)",
+        margin: "10px 0 12px 0"
     }} />
 );
 
 const LinkButton: FC<{ onClick: () => void; icon: React.ReactNode; label: string; disabled?: boolean }> = ({ onClick, icon, label, disabled }) => (
     <PanelSectionRow>
-        <ButtonItem layout="below" onClick={onClick} disabled={disabled}>
+        <ButtonItem layout="below" bottomSeparator="none" onClick={onClick} disabled={disabled}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", justifyContent: "center", minHeight: "22px", width: "100%" }}>
                 {icon}
                 <span style={{ textAlign: "center", display: "inline-block", whiteSpace: "normal", overflowWrap: "anywhere" }}>{label}</span>
@@ -64,49 +55,12 @@ const LinkButton: FC<{ onClick: () => void; icon: React.ReactNode; label: string
 export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang }) => {
     const activeTarget = targetLang ?? resolveTargetLanguage("uk");
     const isUkrainian = Boolean(activeTarget.hasUkrainianCommunity);
-    const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
+    const { versionInfo } = usePluginUpdate(false);
     const [updating, setUpdating] = useState(false);
     const [updateFeedback, setUpdateFeedback] = useState<{ text: string; tone: "success" | "info" | "error" } | null>(null);
 
     useEffect(() => {
-        let cancelled = false;
-        const checkVersion = async () => {
-            try {
-                const current = await call<[], string>("get_current_version");
-                if (!cancelled) {
-                    setVersionInfo(prev => prev ? { ...prev, current } : {
-                        current,
-                        latest: null,
-                        update_available: false,
-                        source_ok: false,
-                        error: null
-                    });
-                }
-            } catch (e) {
-                log.warn("Failed to get immediate version:", e);
-            }
-
-            try {
-                const info = await call<[], VersionInfo>("get_latest_version");
-                log.info("Full version info:", info);
-                if (!cancelled) setVersionInfo(info);
-            } catch (e) {
-                log.error("Failed to check version from GitHub:", e);
-                if (!cancelled) {
-                    setVersionInfo(prev => prev ? { ...prev, update_available: false, source_ok: false, error: "Version check failed" } : {
-                        current: FALLBACK_VERSION,
-                        latest: null,
-                        update_available: false,
-                        source_ok: false,
-                        error: "Version check failed"
-                    });
-                }
-            }
-        };
-        checkVersion();
-        return () => {
-            cancelled = true;
-        };
+        void refreshPluginVersionInfo(true);
     }, []);
 
     const handleUpdatePlugin = async () => {
@@ -115,11 +69,11 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
         setUpdateFeedback(null);
 
         try {
-            let latestInfo = versionInfo;
+            let latestInfo: VersionInfo | null = versionInfo;
             if (!latestInfo?.update_available) {
                 try {
                     latestInfo = await call<[], VersionInfo>("get_latest_version");
-                    setVersionInfo(latestInfo);
+                    setPluginVersionInfo(latestInfo);
                 } catch (e) {
                     log.error("Version check failed before update:", e);
                     setUpdateFeedback({ text: `${t("update_error", lang)}: ${t("version_check_failed", lang)}`, tone: "error" });
@@ -146,7 +100,7 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
                     setUpdateFeedback({ text: t("already_up_to_date", lang), tone: "info" });
                 } else {
                     const installedVer = result.version || latestInfo?.latest || versionInfo?.current || FALLBACK_VERSION;
-                    setVersionInfo(prev => ({
+                    setPluginVersionInfo((prev) => ({
                         current: installedVer,
                         latest: installedVer,
                         latest_tag: prev?.latest_tag,
@@ -182,11 +136,25 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
             ? `${t("update_to", lang)} v${versionInfo.latest}`
             : t("update_plugin", lang);
 
-    const feedbackColor = updateFeedback?.tone === "success"
-        ? "#4ade80"
-        : updateFeedback?.tone === "error"
-            ? "#f87171"
-            : "rgba(255,255,255,0.8)";
+    const feedbackStyles: Record<"success" | "info" | "error", { color: string; bg: string; border: string }> = {
+        success: {
+            color: "#4ade80",
+            bg: "rgba(74, 222, 128, 0.12)",
+            border: "1px solid rgba(74, 222, 128, 0.32)",
+        },
+        error: {
+            color: "#f87171",
+            bg: "rgba(248, 113, 113, 0.12)",
+            border: "1px solid rgba(248, 113, 113, 0.32)",
+        },
+        info: {
+            color: "rgba(255, 255, 255, 0.9)",
+            bg: "rgba(255, 255, 255, 0.08)",
+            border: "1px solid rgba(255, 255, 255, 0.16)",
+        },
+    };
+
+    const activeFeedbackStyle = updateFeedback ? feedbackStyles[updateFeedback.tone] : null;
 
     return (
         <PanelSection title={`🔗 ${t("links", lang)}`}>
@@ -223,21 +191,27 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
             <LinkButton
                 onClick={handleUpdatePlugin}
                 disabled={updating}
-                icon={versionInfo?.update_available ? <FaDownload /> : <FaSyncAlt />}
+                icon={versionInfo?.update_available ? <FaDownload color="#facc15" /> : <FaSyncAlt />}
                 label={updateButtonLabel}
             />
 
-            {updateFeedback && (
+            {updateFeedback && activeFeedbackStyle && (
                 <PanelSectionRow>
                     <div style={{
                         fontSize: "12px",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         lineHeight: 1.35,
-                        color: feedbackColor,
+                        color: activeFeedbackStyle.color,
+                        background: activeFeedbackStyle.bg,
+                        border: activeFeedbackStyle.border,
+                        borderRadius: "6px",
                         width: "100%",
+                        boxSizing: "border-box",
                         textAlign: "center",
                         overflowWrap: "anywhere",
-                        padding: "0 6px 4px 6px",
+                        marginTop: "10px",
+                        marginBottom: "4px",
+                        padding: "7px 10px",
                     }}>
                         {updateFeedback.text}
                     </div>
@@ -252,7 +226,7 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
                     justifyContent: "center",
                     minHeight: "20px",
                     fontSize: "12px",
-                    marginTop: "2px",
+                    marginTop: "8px",
                     marginBottom: "4px",
                     color: "rgba(255,255,255,0.75)",
                     width: "100%",

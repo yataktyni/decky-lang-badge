@@ -31,6 +31,7 @@ vi.mock("../src/translations", () => ({
 
 import { LinksSection } from "../src/components/LinksSection";
 import { resolveTargetLanguage } from "../src/languages";
+import { setPluginVersionInfo } from "../src/hooks/usePluginUpdate";
 
 describe("LinksSection info & auto-updater", () => {
   const openUrl = vi.fn();
@@ -38,6 +39,7 @@ describe("LinksSection info & auto-updater", () => {
   beforeEach(() => {
     callMock.mockReset();
     openUrl.mockReset();
+    setPluginVersionInfo(null);
   });
 
   it("shows update button with latest version and installs on click", async () => {

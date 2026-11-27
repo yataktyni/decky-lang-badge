@@ -3,9 +3,14 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const useSettingsMock = vi.fn();
+const usePluginUpdateMock = vi.fn(() => ({ versionInfo: null, updateAvailable: false, refresh: vi.fn() }));
 
 vi.mock("../src/hooks/useSettings", () => ({
   useSettings: () => useSettingsMock(),
+}));
+
+vi.mock("../src/hooks/usePluginUpdate", () => ({
+  usePluginUpdate: () => usePluginUpdateMock(),
 }));
 
 vi.mock("../src/hooks/useBadgeStatus", () => ({
@@ -84,6 +89,7 @@ const makeSettingsState = (overrides: Record<string, any> = {}, loading = false)
 describe("Settings component", () => {
   beforeEach(() => {
     useSettingsMock.mockReset();
+    usePluginUpdateMock.mockReturnValue({ versionInfo: null, updateAvailable: false, refresh: vi.fn() });
   });
 
   it("shows spinner while loading", () => {
@@ -132,5 +138,25 @@ describe("Settings component", () => {
     expect(screen.queryByText("slider:store_y_offset")).not.toBeInTheDocument();
     expect(screen.getByText("slider:x_offset")).toBeInTheDocument();
     expect(screen.getByText("slider:y_offset")).toBeInTheDocument();
+  });
+
+  it("shows yellow update indicator dot on Info tab only when updateAvailable is true", () => {
+    useSettingsMock.mockReturnValue(makeSettingsState());
+    usePluginUpdateMock.mockReturnValue({
+      versionInfo: { current: "2.1.0", latest: "2.1.1", update_available: true },
+      updateAvailable: true,
+      refresh: vi.fn(),
+    });
+
+    const { rerender } = render(React.createElement(Settings));
+    expect(screen.getByTestId("info-tab-update-dot")).toBeInTheDocument();
+
+    usePluginUpdateMock.mockReturnValue({
+      versionInfo: { current: "2.1.1", latest: "2.1.1", update_available: false },
+      updateAvailable: false,
+      refresh: vi.fn(),
+    });
+    rerender(React.createElement(Settings));
+    expect(screen.queryByTestId("info-tab-update-dot")).not.toBeInTheDocument();
   });
 });
