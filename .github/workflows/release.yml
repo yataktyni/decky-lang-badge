@@ -96,19 +96,19 @@ jobs:
             - name: Create release zip
               run: |
                   # Create release directory structure
-                  mkdir -p release/decky-ukr-badge/dist
+                  mkdir -p release/decky-lang-badge/dist
 
                   # Copy required files
-                  cp -r dist/* release/decky-ukr-badge/dist/
-                  cp main.py release/decky-ukr-badge/
-                  cp plugin.json release/decky-ukr-badge/
-                  cp package.json release/decky-ukr-badge/
-                  cp LICENSE release/decky-ukr-badge/
-                  cp README.md release/decky-ukr-badge/
+                  cp -r dist/* release/decky-lang-badge/dist/
+                  cp main.py release/decky-lang-badge/
+                  cp plugin.json release/decky-lang-badge/
+                  cp package.json release/decky-lang-badge/
+                  cp LICENSE release/decky-lang-badge/
+                  cp README.md release/decky-lang-badge/
 
                   # Create zip
                   cd release
-                  zip -r ../release.zip decky-ukr-badge
+                  zip -r ../release.zip decky-lang-badge
                   cd ..
 
                   # Cleanup
@@ -145,7 +145,7 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   cat > RELEASE_NOTES.md << 'EOF'
-                  ## 🇺🇦 decky-ukr-badge ${{ steps.version.outputs.tag }}
+                  ## 🌐 Localization Badge (`decky-lang-badge`) ${{ steps.version.outputs.tag }}
 
                   ### Installation
                   1. Download `release.zip` below
@@ -156,11 +156,11 @@ jobs:
                   ${{ steps.changelog.outputs.changelog }}
 
                   ---
-                  📝 Auto-generated from commit [`${{ github.sha }}`](https://github.com/yataktyni/decky-ukr-badge/commit/${{ github.sha }})
+                  📝 Auto-generated from commit [`${{ github.sha }}`](https://github.com/yataktyni/decky-lang-badge/commit/${{ github.sha }})
 
-                  🔗 [Compare with previous release](https://github.com/yataktyni/decky-ukr-badge/compare/${{ steps.changelog.outputs.prev_tag }}...${{ steps.version.outputs.tag }})
+                  🔗 [Compare with previous release](https://github.com/yataktyni/decky-lang-badge/compare/${{ steps.changelog.outputs.prev_tag }}...${{ steps.version.outputs.tag }})
 
-                  📖 [Full documentation](https://github.com/yataktyni/decky-ukr-badge#readme)
+                  📖 [Full documentation](https://github.com/yataktyni/decky-lang-badge#readme)
                   EOF
 
                   gh release create "${{ steps.version.outputs.tag }}" \

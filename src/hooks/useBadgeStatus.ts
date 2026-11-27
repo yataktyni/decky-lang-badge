@@ -1,7 +1,12 @@
-// decky-ukr-badge/src/hooks/useBadgeStatus.ts
+// src/hooks/useBadgeStatus.ts
 import { useState, useEffect } from "react";
 import { fetchNoCors } from "@decky/api";
-import { callBackend } from "./useSettings";
+import { SettingsContext } from "./useSettings";
+import {
+    LanguageConfig,
+    isOfficialLanguageInStoreText,
+    resolveTargetLanguage,
+} from "../languages";
 import {
     cleanNonSteamName,
     searchKuli,
@@ -14,12 +19,104 @@ const log = logger.component("useBadgeStatus");
 
 export type BadgeStatus = "OFFICIAL" | "COMMUNITY" | "NONE";
 
-const statusCache: Record<string, { status: BadgeStatus; url: string | null }> = {};
+interface CachedStatusEntry {
+    status: BadgeStatus;
+    url: string | null;
+    cachedAt: number;
+}
+
+const STORAGE_KEY = "decky_lang_badge_status_cache_v2";
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_CACHE_ENTRIES = 500;
+
+const statusCache: Record<string, CachedStatusEntry> = {};
+
+function makeCacheKey(appId: string, langCode: string): string {
+    return `${langCode}:${appId}`;
+}
+
+function loadPersistedCache(): void {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return;
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return;
+        const now = Date.now();
+        for (const [key, entry] of Object.entries(parsed as Record<string, any>)) {
+            if (
+                entry &&
+                (entry.status === "OFFICIAL" || entry.status === "COMMUNITY" || entry.status === "NONE") &&
+                typeof entry.cachedAt === "number" &&
+                now - entry.cachedAt < CACHE_TTL_MS
+            ) {
+                statusCache[key] = {
+                    status: entry.status,
+                    url: typeof entry.url === "string" ? entry.url : null,
+                    cachedAt: entry.cachedAt,
+                };
+            }
+        }
+    } catch {
+        // ignore storage errors
+    }
+}
+
+function persistCache(): void {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return;
+        const entries = Object.entries(statusCache);
+        if (entries.length > MAX_CACHE_ENTRIES) {
+            entries.sort((a, b) => a[1].cachedAt - b[1].cachedAt);
+            const toDrop = entries.length - MAX_CACHE_ENTRIES;
+            for (let i = 0; i < toDrop; i++) {
+                delete statusCache[entries[i][0]];
+            }
+        }
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(statusCache));
+    } catch {
+        // ignore quota/storage errors
+    }
+}
+
+loadPersistedCache();
+
+export function getCachedBadgeStatus(appId: string, langCode?: string): BadgeStatus | null {
+    const code = langCode || resolveTargetLanguage(SettingsContext.value.targetLanguage).code;
+    const key = makeCacheKey(appId, code);
+    const entry = statusCache[key];
+    if (!entry) return null;
+    if (Date.now() - entry.cachedAt >= CACHE_TTL_MS) {
+        delete statusCache[key];
+        return null;
+    }
+    return entry.status;
+}
+
+export function clearBadgeStatusCache(): void {
+    for (const key of Object.keys(statusCache)) {
+        delete statusCache[key];
+    }
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.removeItem(STORAGE_KEY);
+        }
+    } catch {
+        // ignore
+    }
+}
 
 /**
- * Hook to manage fetching of Ukrainian localization status
+ * Hook to manage fetching of localization status for the selected target language.
  */
-export function useBadgeStatus(appId: string | undefined, appName: string | undefined) {
+export function useBadgeStatus(
+    appId: string | undefined,
+    appName: string | undefined,
+    targetLang?: LanguageConfig
+) {
+    const resolvedLang = targetLang ?? resolveTargetLanguage(SettingsContext.value.targetLanguage);
+    const langCode = resolvedLang.code;
+
     const [status, setStatus] = useState<BadgeStatus | null>(null);
     const [url, setUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -33,11 +130,12 @@ export function useBadgeStatus(appId: string | undefined, appName: string | unde
                 return;
             }
 
-            // Check cache
-            if (statusCache[appId]) {
-                log.info(`Using cached status for ${appId}:`, statusCache[appId]);
-                setStatus(statusCache[appId].status);
-                setUrl(statusCache[appId].url);
+            const cacheKey = makeCacheKey(appId, langCode);
+            const cachedEntry = statusCache[cacheKey];
+            if (cachedEntry && Date.now() - cachedEntry.cachedAt < CACHE_TTL_MS) {
+                log.info(`Using cached status for ${cacheKey}:`, cachedEntry);
+                setStatus(cachedEntry.status);
+                setUrl(cachedEntry.url);
                 setLoading(false);
                 return;
             }
@@ -53,18 +151,20 @@ export function useBadgeStatus(appId: string | undefined, appName: string | unde
                     log.info(`Non-Steam game detected: ${currentAppName} (${appId})`);
                 }
 
-                // 1. Aggressive Store Metadata Check (Primary for Steam games)
+                // 1. Steam Store Metadata Check (works for all 29 supported Steam languages)
                 if (isSteamId) {
                     try {
-                        // Match StorePatch.ts fetching logic precisely
-                        const steamResp = await fetchWithTimeout(fetchNoCors(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=en`), 10000);
+                        const steamResp = await fetchWithTimeout(
+                            fetchNoCors(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=en`),
+                            10000
+                        );
                         const steamData = await steamResp.json();
 
                         if (steamData && steamData[appId]?.success) {
                             storeName = steamData[appId].data.name;
                             currentAppName = storeName || currentAppName;
                             const languages = steamData[appId].data.supported_languages || "";
-                            if (languages.toLowerCase().includes("ukrainian")) {
+                            if (isOfficialLanguageInStoreText(languages, resolvedLang)) {
                                 steamStatus = "OFFICIAL";
                             }
                         }
@@ -73,14 +173,13 @@ export function useBadgeStatus(appId: string | undefined, appName: string | unde
                     }
                 }
 
-                // 2. Kuli Community Support (via consolidated searchKuli)
+                // 2. Community Support (currently Kuli.com.ua for Ukrainian)
                 let kuliStatus: BadgeStatus | null = null;
                 let kuliUrl: string | null = null;
 
-                // Priority: Steam Store Name > Initial appName
                 const searchName = storeName || currentAppName;
 
-                if (!cancelled && searchName) {
+                if (!cancelled && searchName && resolvedLang.hasUkrainianCommunity) {
                     log.info(`Resolving Kuli for: ${searchName} (AppID: ${appId})`);
                     try {
                         const response = await searchKuli(searchName);
@@ -95,25 +194,21 @@ export function useBadgeStatus(appId: string | undefined, appName: string | unde
 
                 // 3. Merge Results
                 let finalStatus: BadgeStatus = "NONE";
-
-                // Store API is the source of truth for OFFICIAL
                 if (steamStatus === "OFFICIAL") {
                     finalStatus = "OFFICIAL";
                 } else if (kuliStatus) {
                     finalStatus = kuliStatus;
                 }
 
-                // URL from Kuli is the source of truth for the link
                 const finalUrl = kuliUrl;
 
                 if (!cancelled) {
-                    // Update cache
-                    statusCache[appId] = { status: finalStatus, url: finalUrl };
+                    statusCache[cacheKey] = { status: finalStatus, url: finalUrl, cachedAt: Date.now() };
+                    persistCache();
 
                     setStatus(finalStatus);
                     setUrl(finalUrl);
                 }
-
             } catch (e) {
                 log.error("Status fetch failed:", e);
                 if (!cancelled) setStatus("NONE");
@@ -125,8 +220,10 @@ export function useBadgeStatus(appId: string | undefined, appName: string | unde
         setLoading(true);
         fetchStatus();
 
-        return () => { cancelled = true; };
-    }, [appId, appName]);
+        return () => {
+            cancelled = true;
+        };
+    }, [appId, appName, langCode]);
 
     return { status, url, loading };
 }

@@ -26,7 +26,7 @@ vi.mock("../src/logger", () => ({
 }));
 
 vi.mock("../src/translations", () => ({
-  t: (k: string) => k,
+  t: (k: string) => (k === "version" ? "Version" : k),
 }));
 
 import { LinksSection } from "../src/components/LinksSection";

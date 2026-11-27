@@ -15,6 +15,7 @@ vi.mock("@decky/api", () => ({
 
 vi.mock("../src/hooks/useSettings", () => ({
   callBackend: (method: string, ...args: unknown[]) => callBackendMock(method, ...args),
+  SettingsContext: { value: { targetLanguage: "uk" } },
 }));
 
 vi.mock("../src/utils", () => ({
@@ -34,7 +35,11 @@ vi.mock("../src/logger", () => ({
   },
 }));
 
-import { useBadgeStatus } from "../src/hooks/useBadgeStatus";
+import {
+  clearBadgeStatusCache,
+  getCachedBadgeStatus,
+  useBadgeStatus,
+} from "../src/hooks/useBadgeStatus";
 
 function HookProbe(props: { appId?: string; appName?: string; onState: (s: any) => void }) {
   const state = useBadgeStatus(props.appId, props.appName);
@@ -44,6 +49,7 @@ function HookProbe(props: { appId?: string; appName?: string; onState: (s: any) 
 
 describe("useBadgeStatus", () => {
   beforeEach(() => {
+    clearBadgeStatusCache();
     fetchNoCorsMock.mockReset();
     cleanNonSteamNameMock.mockReset();
     cleanNonSteamNameMock.mockImplementation((s: string) => s);
@@ -96,6 +102,10 @@ describe("useBadgeStatus", () => {
       expect(latest.status).toBe("COMMUNITY");
       expect(latest.url).toBe("https://kuli.com.ua/another-game");
     });
+
+    expect(getCachedBadgeStatus("456", "uk")).toBe("COMMUNITY");
+    const persisted = JSON.parse(window.localStorage.getItem("decky_lang_badge_status_cache_v2") || "{}");
+    expect(persisted["uk:456"]?.status).toBe("COMMUNITY");
   });
 
   it("returns NONE on hard error path", async () => {

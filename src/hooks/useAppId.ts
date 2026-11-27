@@ -1,4 +1,4 @@
-// decky-ukr-badge/src/hooks/useAppId.ts
+// decky-lang-badge/src/hooks/useAppId.ts
 import { useEffect, useState } from "react";
 import { useParams } from "./useParams";
 import { fetchNoCors } from "@decky/api";
@@ -14,27 +14,6 @@ declare const appStore: {
         display_name: string;
         app_type: number;
     } | null;
-};
-
-// Steam app types that are actual games
-const STEAM_GAME_TYPES: Record<number, boolean> = {
-    1: true, // Game
-    2: true, // Application
-    4: true, // Tool
-    8: true, // Demo
-    16: true, // Deprecated
-    32: true, // DLC
-    64: true, // Guide
-    128: true, // Driver
-    256: true, // Config
-    512: true, // Hardware
-    1024: true, // Franchise
-    2048: true, // Video
-    4096: true, // Plugin
-    8192: true, // Music
-    16384: true, // Series
-    32768: true, // Comic
-    65536: true, // Beta
 };
 
 /**

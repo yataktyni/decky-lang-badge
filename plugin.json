@@ -1,16 +1,17 @@
 {
-  "name": "decky-ukr-badge",
+  "name": "Localization Badge",
   "author": "Yataktyni",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "api_version": 1,
   "flags": [],
   "publish": {
     "tags": [
       "localization",
+      "language",
       "badge",
       "ukrainian",
       "steam-deck"
     ],
-    "description": "Displays a badge on game pages showing Ukrainian language support status (Official, Community, or None)."
+    "description": "Displays localization badges on game pages, library thumbnails, and Steam Store for 29 Steam languages (with Kuli.com.ua & LBK Launcher integration for Ukrainian)."
   }
 }

@@ -1,8 +1,9 @@
-// decky-ukr-badge/src/hooks/useSettings.ts
+// decky-lang-badge/src/hooks/useSettings.ts
 import { call } from "@decky/api";
 import { useEffect, useState } from "react";
 import { BehaviorSubject } from "rxjs";
 import { logger } from "../logger";
+import { TargetLanguageSetting } from "../languages";
 
 const log = logger.component("useSettings");
 
@@ -17,7 +18,10 @@ export async function callBackend<T>(method: string, ...args: unknown[]): Promis
     }
 }
 
+export type ThumbnailPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
 export type Settings = {
+    targetLanguage: TargetLanguageSetting;
     badgeType: "full" | "default";
     badgePosition: "top-left" | "top-right";
     offsetX: number;
@@ -25,9 +29,13 @@ export type Settings = {
     showOnStore: boolean;
     storeOffsetX: number;
     storeOffsetY: number;
+    enableLbkIntegration: boolean;
+    showOnThumbnails: boolean;
+    thumbnailPosition: ThumbnailPosition;
 };
 
 const DEFAULT_SETTINGS: Settings = {
+    targetLanguage: "auto",
     badgeType: "full",
     badgePosition: "top-right",
     offsetX: 20,
@@ -35,6 +43,9 @@ const DEFAULT_SETTINGS: Settings = {
     showOnStore: true,
     storeOffsetX: 0,
     storeOffsetY: 20,
+    enableLbkIntegration: true,
+    showOnThumbnails: true,
+    thumbnailPosition: "top-left",
 };
 
 const SettingsContext = new BehaviorSubject<Settings>(DEFAULT_SETTINGS);
@@ -111,6 +122,7 @@ export function useSettings() {
 
     return {
         settings, loading,
+        setTargetLanguage: (v: Settings["targetLanguage"]) => updateSetting("targetLanguage", v),
         setBadgeType: (v: Settings["badgeType"]) => updateSetting("badgeType", v),
         setBadgePosition: (v: Settings["badgePosition"]) => updateSetting("badgePosition", v),
         setOffsetX: (v: Settings["offsetX"]) => updateSetting("offsetX", v),
@@ -118,6 +130,9 @@ export function useSettings() {
         setShowOnStore: (v: Settings["showOnStore"]) => updateSetting("showOnStore", v),
         setStoreOffsetX: (v: Settings["storeOffsetX"]) => updateSetting("storeOffsetX", v),
         setStoreOffsetY: (v: Settings["storeOffsetY"]) => updateSetting("storeOffsetY", v),
+        setEnableLbkIntegration: (v: Settings["enableLbkIntegration"]) => updateSetting("enableLbkIntegration", v),
+        setShowOnThumbnails: (v: Settings["showOnThumbnails"]) => updateSetting("showOnThumbnails", v),
+        setThumbnailPosition: (v: Settings["thumbnailPosition"]) => updateSetting("thumbnailPosition", v),
     };
 }
 

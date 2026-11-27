@@ -48,6 +48,15 @@ env/
 .project
 .classpath
 .settings/
+*.code-workspace
+
+# ===========================
+# Local AI / Agent Configs (may contain local device IPs/passwords)
+# ===========================
+.agent/
+.agents/
+.kilocode/
+scripts/sync_skills.py
 
 # ===========================
 # OS Generated Files

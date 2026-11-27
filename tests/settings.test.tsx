@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const useSettingsMock = vi.fn();
@@ -8,9 +8,22 @@ vi.mock("../src/hooks/useSettings", () => ({
   useSettings: () => useSettingsMock(),
 }));
 
+vi.mock("../src/hooks/useBadgeStatus", () => ({
+  clearBadgeStatusCache: vi.fn(),
+}));
+
+vi.mock("../src/hooks/useLbkTranslations", () => ({
+  getCachedLbkStatus: vi.fn(() => null),
+  getLbkStatus: vi.fn(() => new Promise(() => {})),
+  installLbkLauncher: vi.fn().mockResolvedValue({ success: true }),
+  launchLbkLauncher: vi.fn().mockResolvedValue({ success: true }),
+  triggerLbkRefresh: vi.fn(),
+}));
+
 vi.mock("../src/translations", () => ({
   t: (k: string) => k,
   getSupportedLanguage: () => "en",
+  resolveUiLanguage: () => "en",
 }));
 
 vi.mock("../src/components/Spinner", () => ({
@@ -21,7 +34,14 @@ vi.mock("../src/components/LinksSection", () => ({
   LinksSection: ({ lang }: { lang: string }) => React.createElement("div", {}, `links-${lang}`),
 }));
 
+vi.mock("../src/components/DonateCard", () => ({
+  DonateCard: ({ lang }: { lang: string }) => React.createElement("div", {}, `donate-${lang}`),
+}));
+
 vi.mock("@decky/ui", () => ({
+  ButtonItem: ({ children, onClick }: any) => React.createElement("button", { onClick }, children),
+  DialogButton: ({ children, onClick }: any) => React.createElement("button", { onClick }, children),
+  Focusable: ({ children }: any) => React.createElement("div", {}, children),
   PanelSection: ({ children, title }: any) => React.createElement("section", { "data-title": title }, children),
   PanelSectionRow: ({ children }: any) => React.createElement("div", {}, children),
   DropdownItem: ({ label }: any) => React.createElement("div", {}, `dropdown:${label}`),
@@ -32,92 +52,81 @@ vi.mock("@decky/ui", () => ({
 
 import { Settings } from "../src/settings";
 
+const makeSettingsState = (overrides: Record<string, any> = {}, loading = false) => ({
+  settings: {
+    targetLanguage: "auto",
+    badgeType: "full",
+    badgePosition: "top-right",
+    offsetX: 20,
+    offsetY: 90,
+    showOnStore: true,
+    storeOffsetX: 0,
+    storeOffsetY: 20,
+    enableLbkIntegration: true,
+    showOnThumbnails: true,
+    thumbnailPosition: "top-left",
+    ...overrides,
+  },
+  loading,
+  setTargetLanguage: vi.fn(),
+  setBadgeType: vi.fn(),
+  setBadgePosition: vi.fn(),
+  setOffsetX: vi.fn(),
+  setOffsetY: vi.fn(),
+  setShowOnStore: vi.fn(),
+  setStoreOffsetX: vi.fn(),
+  setStoreOffsetY: vi.fn(),
+  setEnableLbkIntegration: vi.fn(),
+  setShowOnThumbnails: vi.fn(),
+  setThumbnailPosition: vi.fn(),
+});
+
 describe("Settings component", () => {
   beforeEach(() => {
     useSettingsMock.mockReset();
   });
 
   it("shows spinner while loading", () => {
-    useSettingsMock.mockReturnValue({
-      settings: {
-        badgeType: "full",
-        badgePosition: "top-right",
-        offsetX: 20,
-        offsetY: 90,
-        showOnStore: true,
-        storeOffsetX: 0,
-        storeOffsetY: 20,
-      },
-      loading: true,
-      setBadgeType: vi.fn(),
-      setBadgePosition: vi.fn(),
-      setOffsetX: vi.fn(),
-      setOffsetY: vi.fn(),
-      setShowOnStore: vi.fn(),
-      setStoreOffsetX: vi.fn(),
-      setStoreOffsetY: vi.fn(),
-    });
+    useSettingsMock.mockReturnValue(makeSettingsState({}, true));
 
     render(React.createElement(Settings));
     expect(screen.getByText("spinner")).toBeInTheDocument();
-    expect(screen.queryByText("links-en")).not.toBeInTheDocument();
+    expect(screen.queryByText("donate-en")).not.toBeInTheDocument();
   });
 
-  it("renders controls and links section when not loading", () => {
-    useSettingsMock.mockReturnValue({
-      settings: {
-        badgeType: "full",
-        badgePosition: "top-right",
-        offsetX: 20,
-        offsetY: 90,
-        showOnStore: true,
-        storeOffsetX: 0,
-        storeOffsetY: 20,
-      },
-      loading: false,
-      setBadgeType: vi.fn(),
-      setBadgePosition: vi.fn(),
-      setOffsetX: vi.fn(),
-      setOffsetY: vi.fn(),
-      setShowOnStore: vi.fn(),
-      setStoreOffsetX: vi.fn(),
-      setStoreOffsetY: vi.fn(),
-    });
+  it("renders General tab by default with always-visible DonateCard and switches to Layout/Info tabs", () => {
+    useSettingsMock.mockReturnValue(makeSettingsState());
 
     render(React.createElement(Settings));
 
+    // Default General tab
+    expect(screen.getByText("dropdown:target_language")).toBeInTheDocument();
     expect(screen.getByText("dropdown:badge_type")).toBeInTheDocument();
-    expect(screen.getByText("dropdown:badge_position")).toBeInTheDocument();
+    expect(screen.getByText("toggle:show_on_thumbnails:true")).toBeInTheDocument();
     expect(screen.getByText("toggle:show_on_store:true")).toBeInTheDocument();
-    expect(screen.getByText("slider:store_x_offset")).toBeInTheDocument();
-    expect(screen.getByText("slider:store_y_offset")).toBeInTheDocument();
+    expect(screen.getByText("donate-en")).toBeInTheDocument();
+    expect(screen.queryByText("links-en")).not.toBeInTheDocument();
+
+    // Switch to Layout tab
+    fireEvent.click(screen.getByText(/tab_layout/));
+    expect(screen.getByText("dropdown:badge_position")).toBeInTheDocument();
     expect(screen.getByText("slider:x_offset")).toBeInTheDocument();
     expect(screen.getByText("slider:y_offset")).toBeInTheDocument();
+    expect(screen.getByText("slider:store_x_offset")).toBeInTheDocument();
+    expect(screen.getByText("slider:store_y_offset")).toBeInTheDocument();
+    expect(screen.getByText("donate-en")).toBeInTheDocument();
+
+    // Switch to Info tab
+    fireEvent.click(screen.getByText(/tab_info/));
     expect(screen.getByText("links-en")).toBeInTheDocument();
+    expect(screen.getByText("donate-en")).toBeInTheDocument();
   });
 
-  it("hides store sliders when showOnStore is false", () => {
-    useSettingsMock.mockReturnValue({
-      settings: {
-        badgeType: "full",
-        badgePosition: "top-right",
-        offsetX: 20,
-        offsetY: 90,
-        showOnStore: false,
-        storeOffsetX: 0,
-        storeOffsetY: 20,
-      },
-      loading: false,
-      setBadgeType: vi.fn(),
-      setBadgePosition: vi.fn(),
-      setOffsetX: vi.fn(),
-      setOffsetY: vi.fn(),
-      setShowOnStore: vi.fn(),
-      setStoreOffsetX: vi.fn(),
-      setStoreOffsetY: vi.fn(),
-    });
+  it("hides store sliders on Layout tab when showOnStore is false", () => {
+    useSettingsMock.mockReturnValue(makeSettingsState({ showOnStore: false }));
 
     render(React.createElement(Settings));
+    fireEvent.click(screen.getByText(/tab_layout/));
 
     expect(screen.queryByText("slider:store_x_offset")).not.toBeInTheDocument();
     expect(screen.queryByText("slider:store_y_offset")).not.toBeInTheDocument();

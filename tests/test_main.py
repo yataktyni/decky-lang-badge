@@ -156,7 +156,7 @@ def _make_release_zip(with_root=True):
             "dist/index.js": "// updated frontend\n",
         }
         for rel, content in files.items():
-            name = f"decky-ukr-badge/{rel}" if with_root else rel
+            name = f"decky-lang-badge/{rel}" if with_root else rel
             z.writestr(name, content)
     return bio.getvalue()
 
@@ -233,3 +233,156 @@ def test_settings_load_save_merge_defaults(tmp_path, monkeypatch):
 
     reloaded = json.loads(Path(plugin.settings_file).read_text(encoding="utf-8"))
     assert reloaded["offsetY"] == 123
+
+
+def _create_mock_lbk_db(db_path: Path):
+    import sqlite3
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        """
+        CREATE TABLE games (
+            id TEXT PRIMARY KEY,
+            slug TEXT NOT NULL,
+            name TEXT NOT NULL,
+            team TEXT NOT NULL,
+            version TEXT,
+            status TEXT NOT NULL,
+            approved INTEGER NOT NULL DEFAULT 0,
+            hide INTEGER NOT NULL DEFAULT 0,
+            user_unlocked INTEGER NOT NULL DEFAULT 0,
+            translation_progress INTEGER NOT NULL DEFAULT 0,
+            voice_progress INTEGER,
+            voice_archive_path TEXT,
+            achievements_archive_path TEXT,
+            ai TEXT,
+            downloads INTEGER DEFAULT 0,
+            steam_app_id INTEGER
+        )
+        """
+    )
+    conn.executemany(
+        """
+        INSERT INTO games (
+            id, slug, name, team, version, status, approved, hide, user_unlocked,
+            translation_progress, voice_progress, voice_archive_path,
+            achievements_archive_path, ai, downloads, steam_app_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            ("g1", "hollow-knight", "Hollow Knight", "Команда А", "1.5", "released", 1, 0, 0, 100, 50, "v.zip", "a.zip", None, 500, 367520),
+            ("g2", "hollow-knight", "Hollow Knight", "Team B", "0.9", "in_progress", 1, 0, 0, 60, None, None, None, "edited", 100, 367520),
+            ("g3", "hollow-knight", "Hollow Knight", "Hidden Team", "1.0", "released", 1, 1, 0, 100, None, None, None, None, 999, 367520),
+            ("g4", "hollow-knight", "Hollow Knight", "Unapproved", "1.0", "released", 0, 0, 0, 100, None, None, None, None, 999, 367520),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+
+@pytest.mark.asyncio
+async def test_get_lbk_status_and_translations(tmp_path, monkeypatch):
+    fake_home = tmp_path / "deck"
+    db_path = fake_home / ".var" / "app" / "com.lbk.launcher" / "config" / "lbk-launcher" / "lbk.db"
+    _create_mock_lbk_db(db_path)
+
+    cache_dir = db_path.parent / "installation-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    (cache_dir / "g1.json").write_text(json.dumps({"gameId": "g1", "version": "1.5"}), encoding="utf-8")
+
+    monkeypatch.setattr(main, "_get_decky_user_home", lambda: str(fake_home))
+
+    plugin = main.Plugin()
+    status = await plugin.get_lbk_status()
+    assert status["installed"] is True
+    assert status["db_found"] is True
+    assert status["db_path"] == str(db_path)
+
+    result = await plugin.get_lbk_translations("367520")
+    assert result["available"] is True
+    assert result["installed_any"] is True
+    assert len(result["translations"]) == 2
+    assert result["translations"][0]["id"] == "g1"
+    assert result["translations"][0]["installed"] is True
+    assert result["translations"][0]["has_voice"] is True
+    assert result["translations"][0]["has_achievements"] is True
+    assert result["translations"][0]["deep_link"].startswith("lbk://games/hollow-knight/")
+    assert result["translations"][1]["id"] == "g2"
+    assert result["translations"][1]["installed"] is False
+
+
+@pytest.mark.asyncio
+async def test_open_in_lbk_launches_detached(tmp_path, monkeypatch):
+    launched = {}
+
+    def fake_popen(cmd, **kwargs):
+        launched["cmd"] = cmd
+        launched["kwargs"] = kwargs
+        return object()
+
+    monkeypatch.setattr(main, "_get_decky_user_home", lambda: str(tmp_path))
+    monkeypatch.setattr(main, "_get_decky_user", lambda: "deck")
+    monkeypatch.setattr(main, "_find_lbk_launcher", lambda _: ("flatpak", "com.lbk.launcher"))
+    monkeypatch.setattr(main.subprocess, "Popen", fake_popen)
+
+    plugin = main.Plugin()
+    res = await plugin.open_in_lbk("hollow-knight", "Команда А")
+    assert res["success"] is True
+    assert res["method"] == "flatpak"
+    assert launched["cmd"][0:3] == ["flatpak", "run", "com.lbk.launcher"]
+    assert launched["cmd"][3] == "lbk://games/hollow-knight/%D0%9A%D0%BE%D0%BC%D0%B0%D0%BD%D0%B4%D0%B0%20%D0%90"
+    assert launched["kwargs"]["start_new_session"] is True
+
+    spec = await plugin.get_lbk_launch_spec("hollow-knight", "Команда А")
+    assert spec["success"] is True
+    assert spec["method"] == "flatpak"
+    assert "com.lbk.launcher" in spec["args"]
+    assert "lbk://games/hollow-knight/%D0%9A%D0%BE%D0%BC%D0%B0%D0%BD%D0%B4%D0%B0%20%D0%90" in spec["args"]
+
+
+@pytest.mark.asyncio
+async def test_get_lbk_catalog_map_and_update_flag(tmp_path, monkeypatch):
+    fake_home = tmp_path / "deck"
+    db_path = fake_home / ".var" / "app" / "com.lbk.launcher" / "config" / "lbk-launcher" / "lbk.db"
+    _create_mock_lbk_db(db_path)
+
+    cache_dir = db_path.parent / "installation-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    # Installed older version 1.4 while DB has 1.5 -> has_update=True
+    (cache_dir / "g1.json").write_text(json.dumps({"gameId": "g1", "version": "1.4"}), encoding="utf-8")
+
+    monkeypatch.setattr(main, "_get_decky_user_home", lambda: str(fake_home))
+
+    plugin = main.Plugin()
+    catalog = await plugin.get_lbk_catalog_map()
+    assert catalog["available"] is True
+    assert "367520" in catalog["games"]
+    assert catalog["games"]["367520"]["installed"] is True
+    assert catalog["games"]["367520"]["has_update"] is True
+    assert catalog["games"]["367520"]["count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_install_lbk_launcher_runs_flatpak_install(tmp_path, monkeypatch):
+    captured = {}
+
+    class FakeProc:
+        returncode = 0
+        stdout = "Installed com.lbk.launcher"
+        stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return FakeProc()
+
+    monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/bin/flatpak" if name == "flatpak" else None)
+    monkeypatch.setattr(main, "_get_decky_user_home", lambda: str(tmp_path))
+    monkeypatch.setattr(main, "_get_decky_user", lambda: "deck")
+    monkeypatch.setattr(main.subprocess, "run", fake_run)
+
+    plugin = main.Plugin()
+    res = await plugin.install_lbk_launcher()
+    assert res["success"] is True
+    assert captured["cmd"][0:2] == ["/usr/bin/flatpak", "install"]
+    assert main.LBK_FLATPAKREF_URL in captured["cmd"]

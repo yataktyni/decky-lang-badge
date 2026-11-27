@@ -1,14 +1,19 @@
-# decky-ukr-badge/main.py
+# decky-lang-badge/main.py
 
 import asyncio
+import glob
 import json
 import os
+import pwd
+import shutil
+import sqlite3
+import subprocess
 import urllib.parse
 import urllib.request
 import urllib.error
 import re
 import time
-from typing import Dict, Any, TypedDict
+from typing import Dict, Any, List, Optional, Tuple, TypedDict
 
 import decky
 
@@ -18,6 +23,7 @@ import decky
 # ============================================
 
 class Settings(TypedDict):
+    targetLanguage: str
     badgeType: str
     badgePosition: str
     offsetX: int
@@ -25,9 +31,13 @@ class Settings(TypedDict):
     showOnStore: bool
     storeOffsetX: int
     storeOffsetY: int
+    enableLbkIntegration: bool
+    showOnThumbnails: bool
+    thumbnailPosition: str
 
 
 DEFAULT_SETTINGS: Settings = {
+    "targetLanguage": "auto",
     "badgeType": "full",
     "badgePosition": "top-right",
     "offsetX": 20,
@@ -35,10 +45,16 @@ DEFAULT_SETTINGS: Settings = {
     "showOnStore": True,
     "storeOffsetX": 0,
     "storeOffsetY": 20,
+    "enableLbkIntegration": True,
+    "showOnThumbnails": True,
+    "thumbnailPosition": "top-left",
 }
 
+LBK_FLATPAK_ID = "com.lbk.launcher"
+LBK_FLATPAKREF_URL = "https://flatpak.lbklauncher.com/com.lbk.launcher.flatpakref"
+
 HTTP_TIMEOUT = 10
-HTTP_USER_AGENT = "decky-ukr-badge/1.0"
+HTTP_USER_AGENT = "decky-lang-badge/2.1"
 
 
 # ============================================
@@ -100,13 +116,13 @@ class Plugin:
     # Lifecycle Methods
     async def _main(self):
         """Called when plugin loads."""
-        decky.logger.info("decky-ukr-badge: _main called")
+        decky.logger.info("decky-lang-badge: _main called")
         self.settings_file = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
         self._load_settings()
 
     async def _unload(self):
         """Called when plugin unloads."""
-        decky.logger.info("decky-ukr-badge: _unload called")
+        decky.logger.info("decky-lang-badge: _unload called")
 
     # Settings Management
     def _load_settings(self) -> Settings:
@@ -190,7 +206,7 @@ class Plugin:
         current_version_raw = await self.get_current_version()
         current_version = normalize_semver_core(current_version_raw)
         current_tuple = parse_version_tuple(current_version)
-        github_api = "https://api.github.com/repos/yataktyni/decky-ukr-badge/releases?per_page=20"
+        github_api = "https://api.github.com/repos/yataktyni/decky-lang-badge/releases?per_page=20"
 
         # Defensive sanitization in case runtime/plugin files accidentally mutate value
         github_api = (github_api or "").strip().split()[0]
@@ -212,7 +228,7 @@ class Plugin:
             base_result["github_api"] = github_api
 
         try:
-            if not github_api.startswith("https://api.github.com/repos/yataktyni/decky-ukr-badge/releases"):
+            if not github_api.startswith("https://api.github.com/repos/yataktyni/decky-lang-badge/releases"):
                 base_result["error"] = f"Misconfigured GitHub API URL: {github_api}"
                 return base_result
 
@@ -279,7 +295,7 @@ class Plugin:
         import zipfile
         import io
 
-        release_url = "https://github.com/yataktyni/decky-ukr-badge/releases/latest/download/release.zip"
+        release_url = "https://github.com/yataktyni/decky-lang-badge/releases/latest/download/release.zip"
         plugin_dir = os.path.dirname(os.path.abspath(__file__))
 
         try:
@@ -314,7 +330,12 @@ class Plugin:
                         if not target_name:
                             continue
 
-                        target_path = os.path.join(target_dir, target_name)
+                        # Guard against Zip Slip (path traversal outside target_dir)
+                        resolved_base = os.path.realpath(target_dir)
+                        target_path = os.path.realpath(os.path.join(resolved_base, target_name))
+                        if not target_path.startswith(resolved_base + os.sep):
+                            raise ValueError(f"Unsafe zip entry path: {info.filename}")
+
                         os.makedirs(os.path.dirname(target_path), exist_ok=True)
                         with zf.open(info) as src, open(target_path, 'wb') as dst:
                             dst.write(src.read())
@@ -349,3 +370,470 @@ class Plugin:
         """Force update by downloading latest release.zip without version check."""
         decky.logger.info("[FORCE_UPDATE] Starting forced update without version check...")
         return await self._download_and_extract_latest_release()
+
+    # ============================================
+    # LBK Launcher Integration
+    # ============================================
+
+    async def get_lbk_status(self) -> Dict[str, Any]:
+        """Detect LBK Launcher installation and local catalog database."""
+        return await asyncio.to_thread(_get_lbk_status_sync)
+
+    async def get_lbk_translations(self, app_id: str) -> Dict[str, Any]:
+        """Query local LBK Launcher SQLite DB for translations matching Steam AppID."""
+        return await asyncio.to_thread(_get_lbk_translations_sync, str(app_id or "").strip())
+
+    async def get_lbk_catalog_map(self) -> Dict[str, Any]:
+        """Return compact map of all Steam AppIDs in local lbk.db for fast library thumbnail badges."""
+        return await asyncio.to_thread(_get_lbk_catalog_map_sync)
+
+    async def install_lbk_launcher(self) -> Dict[str, Any]:
+        """Install LBK Launcher automatically via official Flatpak ref."""
+        return await asyncio.to_thread(_install_lbk_launcher_sync)
+
+    async def get_lbk_launch_spec(self, slug: str = "", team: str = "") -> Dict[str, Any]:
+        """Return executable + launch options for starting LBK Launcher via Steam in Gaming Mode."""
+        return await asyncio.to_thread(_get_lbk_launch_spec_sync, str(slug or "").strip(), str(team or "").strip())
+
+    async def open_in_lbk(self, slug: str, team: str) -> Dict[str, Any]:
+        """Open a specific translation in LBK Launcher via lbk:// deep link."""
+        return await asyncio.to_thread(_open_in_lbk_sync, str(slug or "").strip(), str(team or "").strip())
+
+
+# ============================================
+# LBK Launcher Helpers
+# ============================================
+
+def _get_decky_user_home() -> str:
+    home = getattr(decky, "DECKY_USER_HOME", "") or os.environ.get("DECKY_USER_HOME", "")
+    if home and os.path.isdir(home):
+        return home
+    return os.path.expanduser("~")
+
+
+def _get_decky_user() -> str:
+    user = getattr(decky, "DECKY_USER", "") or os.environ.get("DECKY_USER", "")
+    if user:
+        return user
+    return os.environ.get("USER", "deck")
+
+
+def _find_lbk_db(user_home: str) -> Optional[str]:
+    candidates = [
+        os.path.join(user_home, ".var", "app", LBK_FLATPAK_ID, "config", "lbk-launcher", "lbk.db"),
+        os.path.join(user_home, ".var", "app", LBK_FLATPAK_ID, "config", "LBK Launcher", "lbk.db"),
+        os.path.join(user_home, ".config", "lbk-launcher", "lbk.db"),
+        os.path.join(user_home, ".config", "LBK Launcher", "lbk.db"),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def _find_lbk_launcher(user_home: str) -> Tuple[Optional[str], Optional[str]]:
+    """Detect how LBK Launcher can be invoked on this system."""
+    # 1. Flatpak installation (system or user)
+    flatpak_dirs = [
+        os.path.join("/var/lib/flatpak/app", LBK_FLATPAK_ID),
+        os.path.join(user_home, ".local", "share", "flatpak", "app", LBK_FLATPAK_ID),
+    ]
+    if any(os.path.isdir(d) for d in flatpak_dirs) and shutil.which("flatpak"):
+        return ("flatpak", LBK_FLATPAK_ID)
+
+    # 2. AppImage in common Steam Deck / Linux locations
+    search_dirs = [
+        os.path.join(user_home, "Applications"),
+        os.path.join(user_home, "Desktop"),
+        os.path.join(user_home, "Downloads"),
+        os.path.join(user_home, ".local", "bin"),
+        user_home,
+    ]
+    for base_dir in search_dirs:
+        if not os.path.isdir(base_dir):
+            continue
+        for entry in sorted(glob.glob(os.path.join(base_dir, "*")), reverse=True):
+            lower_name = os.path.basename(entry).lower()
+            if "lbk" in lower_name and lower_name.endswith(".appimage") and os.path.isfile(entry):
+                return ("appimage", entry)
+
+    # 3. Native binary
+    for bin_candidate in [
+        shutil.which("lbk-launcher"),
+        os.path.join(user_home, ".local", "bin", "lbk-launcher"),
+        "/usr/bin/lbk-launcher",
+    ]:
+        if bin_candidate and os.path.isfile(bin_candidate):
+            return ("binary", bin_candidate)
+
+    # 4. Registered desktop URL handler fallback
+    xdg_open = shutil.which("xdg-open")
+    if xdg_open:
+        return ("xdg-open", xdg_open)
+
+    return (None, None)
+
+
+def _build_lbk_deep_link(slug: str, team: str) -> str:
+    return f"lbk://games/{urllib.parse.quote(slug, safe='')}/{urllib.parse.quote(team, safe='')}"
+
+
+def _get_lbk_status_sync() -> Dict[str, Any]:
+    user_home = _get_decky_user_home()
+    db_path = _find_lbk_db(user_home)
+    method, launcher_path = _find_lbk_launcher(user_home)
+    has_direct_launcher = method in ("flatpak", "appimage", "binary")
+    return {
+        "installed": bool(db_path or has_direct_launcher),
+        "db_found": bool(db_path),
+        "db_path": db_path,
+        "launch_method": method,
+        "launcher_path": launcher_path,
+    }
+
+
+def _read_installed_cache_ids(db_path: str) -> Dict[str, Dict[str, Any]]:
+    cache_dir = os.path.join(os.path.dirname(db_path), "installation-cache")
+    installed: Dict[str, Dict[str, Any]] = {}
+    if not os.path.isdir(cache_dir):
+        return installed
+    for entry in os.listdir(cache_dir):
+        if not entry.endswith(".json"):
+            continue
+        file_path = os.path.join(cache_dir, entry)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            game_path = data.get("gamePath")
+            if isinstance(game_path, str) and game_path.strip() and not os.path.isdir(game_path):
+                continue
+            game_id = str(data.get("gameId") or entry[:-5])
+            installed[game_id] = data
+        except Exception:
+            continue
+    return installed
+
+
+def _get_lbk_translations_sync(app_id: str) -> Dict[str, Any]:
+    if not app_id or not app_id.isdigit():
+        return {"available": False, "installed_any": False, "translations": []}
+
+    user_home = _get_decky_user_home()
+    db_path = _find_lbk_db(user_home)
+    if not db_path:
+        return {"available": False, "installed_any": False, "translations": []}
+
+    steam_app_id = int(app_id)
+    installed_map = _read_installed_cache_ids(db_path)
+
+    conn: Optional[sqlite3.Connection] = None
+    try:
+        db_uri = f"file:{urllib.parse.quote(db_path, safe='/')}?mode=ro"
+        conn = sqlite3.connect(db_uri, uri=True, timeout=3.0)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        cols = {row[1] for row in cur.execute("PRAGMA table_info(games)").fetchall()}
+        if not cols or "steam_app_id" not in cols:
+            return {"available": False, "installed_any": False, "translations": []}
+
+        select_fields = [
+            "id",
+            "slug" if "slug" in cols else "id AS slug",
+            "name" if "name" in cols else "'' AS name",
+            "team" if "team" in cols else "'' AS team",
+            "version" if "version" in cols else "NULL AS version",
+            "status" if "status" in cols else "'' AS status",
+            "translation_progress" if "translation_progress" in cols else "0 AS translation_progress",
+            "voice_progress" if "voice_progress" in cols else "NULL AS voice_progress",
+            "voice_archive_path" if "voice_archive_path" in cols else "NULL AS voice_archive_path",
+            "achievements_archive_path" if "achievements_archive_path" in cols else "NULL AS achievements_archive_path",
+            "ai" if "ai" in cols else "NULL AS ai",
+            "downloads" if "downloads" in cols else "0 AS downloads",
+        ]
+
+        where_clauses = ["steam_app_id = ?"]
+        if "approved" in cols:
+            where_clauses.append("approved = 1")
+        if "hide" in cols and "user_unlocked" in cols:
+            where_clauses.append("(hide = 0 OR user_unlocked = 1)")
+        elif "hide" in cols:
+            where_clauses.append("hide = 0")
+
+        sql = (
+            f"SELECT {', '.join(select_fields)} FROM games "
+            f"WHERE {' AND '.join(where_clauses)} "
+            f"ORDER BY COALESCE(translation_progress, 0) DESC, COALESCE(downloads, 0) DESC"
+        )
+        rows = cur.execute(sql, (steam_app_id,)).fetchall()
+
+        translations: List[Dict[str, Any]] = []
+        installed_any = False
+
+        for row in rows:
+            game_id = str(row["id"])
+            slug = str(row["slug"] or game_id)
+            team = str(row["team"] or "")
+            install_record = installed_map.get(game_id)
+            is_installed = install_record is not None
+            if is_installed:
+                installed_any = True
+
+            voice_prog = row["voice_progress"]
+            has_voice = bool(row["voice_archive_path"]) or (isinstance(voice_prog, int) and voice_prog > 0)
+            has_achievements = bool(row["achievements_archive_path"])
+
+            installed_ver = install_record.get("version") if install_record else None
+            latest_ver = row["version"]
+            has_update = bool(
+                is_installed
+                and latest_ver
+                and installed_ver
+                and str(latest_ver).strip() != str(installed_ver).strip()
+            )
+
+            translations.append({
+                "id": game_id,
+                "slug": slug,
+                "name": str(row["name"] or ""),
+                "team": team,
+                "version": latest_ver,
+                "status": str(row["status"] or ""),
+                "translation_progress": int(row["translation_progress"] or 0),
+                "voice_progress": int(voice_prog) if voice_prog is not None else None,
+                "has_voice": has_voice,
+                "has_achievements": has_achievements,
+                "ai": row["ai"],
+                "installed": is_installed,
+                "installed_version": installed_ver,
+                "has_update": has_update,
+                "deep_link": _build_lbk_deep_link(slug, team),
+            })
+
+        return {
+            "available": True,
+            "installed_any": installed_any,
+            "has_update_any": any(item["has_update"] for item in translations),
+            "translations": translations,
+        }
+    except Exception as e:
+        decky.logger.error(f"[LBK] Failed to query lbk.db for app_id={app_id}: {e}")
+        return {"available": False, "installed_any": False, "translations": [], "error": str(e)}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _build_user_session_env(user: str, user_home: str) -> Tuple[Dict[str, str], Optional[int], Optional[int]]:
+    env = os.environ.copy()
+    env["HOME"] = user_home
+    env["USER"] = user
+    env["LOGNAME"] = user
+
+    uid: Optional[int] = None
+    gid: Optional[int] = None
+    try:
+        pw = pwd.getpwnam(user)
+        uid = pw.pw_uid
+        gid = pw.pw_gid
+    except KeyError:
+        pass
+
+    if uid is not None:
+        runtime_dir = f"/run/user/{uid}"
+        if os.path.isdir(runtime_dir):
+            env.setdefault("XDG_RUNTIME_DIR", runtime_dir)
+            bus_path = os.path.join(runtime_dir, "bus")
+            if os.path.exists(bus_path):
+                env.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={bus_path}")
+            if "WAYLAND_DISPLAY" not in env:
+                for sock in ("gamescope-0", "wayland-0"):
+                    if os.path.exists(os.path.join(runtime_dir, sock)):
+                        env["WAYLAND_DISPLAY"] = sock
+                        break
+    env.setdefault("DISPLAY", ":0")
+    return env, uid, gid
+
+
+def _get_lbk_catalog_map_sync() -> Dict[str, Any]:
+    user_home = _get_decky_user_home()
+    db_path = _find_lbk_db(user_home)
+    if not db_path:
+        return {"available": False, "games": {}}
+
+    installed_map = _read_installed_cache_ids(db_path)
+    conn: Optional[sqlite3.Connection] = None
+    try:
+        db_uri = f"file:{urllib.parse.quote(db_path, safe='/')}?mode=ro"
+        conn = sqlite3.connect(db_uri, uri=True, timeout=3.0)
+        cur = conn.cursor()
+
+        cols = {row[1] for row in cur.execute("PRAGMA table_info(games)").fetchall()}
+        if not cols or "steam_app_id" not in cols:
+            return {"available": False, "games": {}}
+
+        where_clauses = ["steam_app_id IS NOT NULL"]
+        if "approved" in cols:
+            where_clauses.append("approved = 1")
+        if "hide" in cols and "user_unlocked" in cols:
+            where_clauses.append("(hide = 0 OR user_unlocked = 1)")
+        elif "hide" in cols:
+            where_clauses.append("hide = 0")
+
+        ver_col = "version" if "version" in cols else "NULL"
+        sql = f"SELECT id, steam_app_id, {ver_col} FROM games WHERE {' AND '.join(where_clauses)}"
+        rows = cur.execute(sql).fetchall()
+
+        games: Dict[str, Dict[str, Any]] = {}
+        for game_id, steam_app_id, latest_ver in rows:
+            if steam_app_id is None:
+                continue
+            key = str(steam_app_id)
+            entry = games.get(key)
+            if entry is None:
+                entry = {"installed": False, "has_update": False, "count": 0}
+                games[key] = entry
+            entry["count"] += 1
+
+            install_record = installed_map.get(str(game_id))
+            if install_record is not None:
+                entry["installed"] = True
+                installed_ver = install_record.get("version")
+                if latest_ver and installed_ver and str(latest_ver).strip() != str(installed_ver).strip():
+                    entry["has_update"] = True
+
+        return {"available": True, "games": games}
+    except Exception as e:
+        decky.logger.error(f"[LBK] Failed to build catalog map: {e}")
+        return {"available": False, "games": {}, "error": str(e)}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _install_lbk_launcher_sync() -> Dict[str, Any]:
+    flatpak_bin = shutil.which("flatpak")
+    if not flatpak_bin:
+        return {"success": False, "error": "Flatpak is not installed on this system"}
+
+    user_home = _get_decky_user_home()
+    user = _get_decky_user()
+
+    # Reuse SteamOS system runtimes when running as root (Decky plugin_loader), otherwise --user
+    is_root = hasattr(os, "geteuid") and os.geteuid() == 0
+    scope_flag = "--system" if is_root else "--user"
+    cmd = [flatpak_bin, "install", scope_flag, "--noninteractive", "-y", LBK_FLATPAKREF_URL]
+
+    try:
+        decky.logger.info(f"[LBK] Installing LBK Launcher via Flatpak: {' '.join(cmd)}")
+        env, uid, gid = _build_user_session_env(user, user_home)
+        run_kwargs: Dict[str, Any] = {
+            "capture_output": True,
+            "text": True,
+            "timeout": 300,
+        }
+        if not is_root:
+            run_kwargs["env"] = env
+
+        proc = subprocess.run(cmd, **run_kwargs)
+        if proc.returncode != 0:
+            err_msg = (proc.stderr or proc.stdout or f"Exit code {proc.returncode}").strip()
+            decky.logger.error(f"[LBK] Flatpak install failed: {err_msg}")
+            return {"success": False, "error": err_msg[-300:]}
+
+        status = _get_lbk_status_sync()
+        decky.logger.info(f"[LBK] Flatpak install complete, status={status}")
+        return {"success": True, "status": status}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "Installation timed out"}
+    except Exception as e:
+        decky.logger.error(f"[LBK] Flatpak install exception: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def _get_lbk_launch_spec_sync(slug: str = "", team: str = "") -> Dict[str, Any]:
+    user_home = _get_decky_user_home()
+    has_target = bool(slug and team)
+    deep_link = _build_lbk_deep_link(slug, team) if has_target else ""
+    method, launcher_path = _find_lbk_launcher(user_home)
+
+    if not method or not launcher_path:
+        return {"success": False, "error": "LBK Launcher not found", "deep_link": deep_link}
+
+    if method == "flatpak":
+        flatpak_bin = shutil.which("flatpak") or "/usr/bin/flatpak"
+        args = f'run {launcher_path} "{deep_link}"' if has_target else f"run {launcher_path}"
+        return {
+            "success": True,
+            "method": "flatpak",
+            "bin": flatpak_bin,
+            "args": args,
+            "workdir": user_home,
+            "deep_link": deep_link,
+        }
+
+    if method in ("appimage", "binary"):
+        return {
+            "success": True,
+            "method": method,
+            "bin": launcher_path,
+            "args": f'"{deep_link}"' if has_target else "",
+            "workdir": os.path.dirname(launcher_path) or user_home,
+            "deep_link": deep_link,
+        }
+
+    return {
+        "success": False,
+        "method": method,
+        "error": "No direct LBK executable found",
+        "deep_link": deep_link,
+    }
+
+
+def _open_in_lbk_sync(slug: str, team: str) -> Dict[str, Any]:
+    if not slug or not team:
+        return {"success": False, "error": "Missing slug or team"}
+
+    user_home = _get_decky_user_home()
+    user = _get_decky_user()
+    deep_link = _build_lbk_deep_link(slug, team)
+    method, launcher_path = _find_lbk_launcher(user_home)
+
+    if not method or not launcher_path:
+        return {"success": False, "error": "LBK Launcher not found", "deep_link": deep_link}
+
+    if method == "flatpak":
+        cmd = ["flatpak", "run", launcher_path, deep_link]
+    elif method == "appimage":
+        cmd = [launcher_path, deep_link]
+    elif method == "binary":
+        cmd = [launcher_path, deep_link]
+    else:
+        cmd = [launcher_path, deep_link]
+
+    try:
+        env, uid, gid = _build_user_session_env(user, user_home)
+        popen_kwargs: Dict[str, Any] = {
+            "env": env,
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+            "start_new_session": True,
+        }
+        if hasattr(os, "geteuid") and os.geteuid() == 0 and uid is not None and uid != 0:
+            popen_kwargs["user"] = uid
+            if gid is not None:
+                popen_kwargs["group"] = gid
+
+        decky.logger.info(f"[LBK] Launching via {method}: {cmd}")
+        subprocess.Popen(cmd, **popen_kwargs)
+        return {"success": True, "method": method, "deep_link": deep_link}
+    except Exception as e:
+        decky.logger.error(f"[LBK] Failed to launch {cmd}: {e}")
+        return {"success": False, "error": str(e), "deep_link": deep_link}

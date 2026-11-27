@@ -1,8 +1,7 @@
-// decky-ukr-badge/src/utils.ts
-import { call } from "@decky/api";
+// decky-lang-badge/src/utils.ts
 import { fetchNoCors } from "@decky/api";
+import { Navigation } from "@decky/ui";
 import { logger } from "./logger";
-import { callBackend } from "./hooks/useSettings";
 
 const log = logger.component("utils");
 
@@ -44,22 +43,40 @@ export function urlifyGameName(name: string): string {
         .replace(/^-+|-+$/g, "");
 }
 
-// Opens a URL in Steam's built-in browser.
+/**
+ * Opens a URL in Steam's built-in Game Mode browser (Navigation.NavigateToExternalWeb),
+ * falling back to SteamClient.System.OpenInSystemBrowser or window.open.
+ */
 export function openInSteamBrowser(url: string): void {
+    if (!url) return;
+
     try {
-        // Use Steam's navigation to open external URLs
+        if (Navigation && typeof Navigation.NavigateToExternalWeb === "function") {
+            Navigation.NavigateToExternalWeb(url);
+            return;
+        }
+    } catch (e) {
+        log.warn("Navigation.NavigateToExternalWeb failed, trying fallback:", e);
+    }
+
+    try {
         if (
             typeof SteamClient !== "undefined" &&
             SteamClient.System?.OpenInSystemBrowser
         ) {
             SteamClient.System.OpenInSystemBrowser(url);
-        } else {
-            // Fallback
+            return;
+        }
+    } catch (e) {
+        log.warn("SteamClient.System.OpenInSystemBrowser failed, trying window.open:", e);
+    }
+
+    try {
+        if (typeof window !== "undefined") {
             window.open(url, "_blank");
         }
     } catch (e) {
         log.error("Error opening URL:", e);
-        window.open(url, "_blank");
     }
 }
 
@@ -77,20 +94,25 @@ declare const SteamClient:
 
 const FETCH_TIMEOUT_MS = 5000;
 
-// Helper function to add timeout to fetch requests
+// Helper function to add timeout to fetch requests (clears timer on settle)
 export async function fetchWithTimeout(
     fetchPromise: Promise<Response>,
     timeoutMs: number = FETCH_TIMEOUT_MS
 ): Promise<Response> {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-    })
-    return Promise.race([fetchPromise, timeoutPromise])
+        timer = setTimeout(() => reject(new Error("Request timeout")), timeoutMs);
+    });
+    try {
+        return await Promise.race([fetchPromise, timeoutPromise]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
 }
 
 // Helper for Levenshtein distance
 function levenshtein(a: string, b: string): number {
-    const matrix = [];
+    const matrix: number[][] = [];
     for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
     for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
     for (let i = 1; i <= b.length; i++) {
@@ -105,33 +127,99 @@ function levenshtein(a: string, b: string): number {
     return matrix[b.length][a.length];
 }
 
-export async function searchKuli(gameName: string): Promise<{ status: string, slug: string } | null> {
+function decodeHtmlEntities(input: string): string {
+    return input
+        .replace(/&amp;/gi, "&")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#x27;|&apos;|&#39;/gi, "'")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+}
+
+/**
+ * Detects if HTML response from kuli.com.ua is a valid game page (not 404/not-found).
+ * Avoids checking bare "404" substring which can appear in image hashes or asset URLs.
+ */
+export function isValidKuliGamePage(html: string): boolean {
+    if (!html) return false;
+    const hLow = html.toLowerCase();
+    if (
+        hLow.includes("page-not-found") ||
+        hLow.includes("сторінку не знайдено") ||
+        /<title[^>]*>\s*404\b/.test(hLow)
+    ) {
+        return false;
+    }
+    return (
+        hLow.includes("product-details-page") ||
+        hLow.includes("product-essential") ||
+        hLow.includes("item__instruction-main")
+    );
+}
+
+/**
+ * Extracts localization status ("COMMUNITY" or "OFFICIAL") from a Kuli game page HTML.
+ */
+export function getKuliStatusFromHtml(html: string): "COMMUNITY" | "OFFICIAL" {
+    if (html.toLowerCase().includes("item__instruction-main")) return "COMMUNITY";
+    return "OFFICIAL";
+}
+
+/**
+ * Parses search results from kuli.com.ua/games?query=... HTML.
+ * Supports nested wrappers inside .product-title (e.g. .product-title-wrapper > div).
+ */
+export function parseKuliSearchResults(
+    html: string,
+    query: string
+): { slug: string; title: string; score: number }[] {
+    const results: { slug: string; title: string; score: number }[] = [];
+    if (!html || !query) return results;
+
+    const qLow = query.toLowerCase().trim();
+    const productItemRegex =
+        /<a\b[^>]*class="[^"]*product-item[^"]*"[^>]*href="\/([a-z0-9-]+)"[^>]*>([\s\S]*?)<\/a>|<a\b[^>]*href="\/([a-z0-9-]+)"[^>]*class="[^"]*product-item[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+
+    let match: RegExpExecArray | null;
+    while ((match = productItemRegex.exec(html)) !== null) {
+        const slug = (match[1] || match[3] || "").trim();
+        const body = match[2] || match[4] || "";
+
+        if (!slug || slug === "games" || results.some((r) => r.slug === slug)) continue;
+
+        const titleBlock = body.match(
+            /<([a-z0-9]+)\b[^>]*class="[^"]*product-title[^"]*"[^>]*>([\s\S]*?)<\/\1>/i
+        );
+        if (!titleBlock) continue;
+
+        const rawTitle = titleBlock[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        const title = decodeHtmlEntities(rawTitle);
+        if (!title) continue;
+
+        const tLow = title.toLowerCase().trim();
+        let score = levenshtein(qLow, tLow);
+        if (tLow === qLow) score = 0;
+        else if (tLow.includes(qLow) || qLow.includes(tLow)) score = Math.min(score, 10);
+
+        results.push({ slug, title, score });
+    }
+
+    results.sort((a, b) => a.score - b.score);
+    return results;
+}
+
+export async function searchKuli(gameName: string): Promise<{ status: string; slug: string } | null> {
     if (!gameName) return null;
 
     // Internal helper to perform search with a given query
-    async function performSearch(query: string): Promise<{ status: string, slug: string } | null> {
+    async function performSearch(query: string): Promise<{ status: string; slug: string } | null> {
         try {
             const headers = {
                 "Accept": "text/html",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            };
-
-            // Helper: detect if response is a valid game page (not 404/redirect)
-            const isValidGamePage = (html: string): boolean => {
-                const hLow = html.toLowerCase();
-                if (hLow.includes('page-not-found') ||
-                    hLow.includes('сторінку не знайдено') ||
-                    hLow.includes('404')) {
-                    return false;
-                }
-                return hLow.includes('product-details-page') ||
-                    hLow.includes('product-essential') ||
-                    hLow.includes('item__instruction-main');
-            };
-
-            const getStatusFromHtml = (html: string): string => {
-                if (html.toLowerCase().includes("item__instruction-main")) return "COMMUNITY";
-                return "OFFICIAL";
             };
 
             // 1. Try DIRECT LINK first
@@ -141,11 +229,13 @@ export async function searchKuli(gameName: string): Promise<{ status: string, sl
 
             try {
                 const directRes = await fetchWithTimeout(fetchNoCors(directUrl, { headers }), 8000);
-                const directHtml = await directRes.text();
+                if (directRes.status !== 404) {
+                    const directHtml = await directRes.text();
 
-                if (isValidGamePage(directHtml)) {
-                    log.info(`Direct link HIT for "${query}" -> ${directSlug}`);
-                    return { status: getStatusFromHtml(directHtml), slug: directSlug };
+                    if (isValidKuliGamePage(directHtml)) {
+                        log.info(`Direct link HIT for "${query}" -> ${directSlug}`);
+                        return { status: getKuliStatusFromHtml(directHtml), slug: directSlug };
+                    }
                 }
             } catch (e) {
                 log.warn(`Direct check failed for ${directSlug}:`, e);
@@ -157,31 +247,10 @@ export async function searchKuli(gameName: string): Promise<{ status: string, sl
             const res = await fetchWithTimeout(fetchNoCors(searchUrl, { headers }), 10000);
 
             const html = await res.text();
-            const results: { slug: string; title: string; score: number }[] = [];
-
-            // More robust product item matching
-            const productItemRegex = /href="\/([a-z0-9-]+)"[^>]*>[\s\S]*?class="product-title[^"]*"[^>]*>[\s\S]*?([^<]+)</gi;
-
-            let match;
-            while ((match = productItemRegex.exec(html)) !== null) {
-                const slug = match[1];
-                const title = match[2].trim();
-
-                if (!title || !slug || slug === 'games' || results.some(r => r.slug === slug)) continue;
-
-                const qLow = query.toLowerCase().trim();
-                const tLow = title.toLowerCase().trim();
-
-                let score = levenshtein(qLow, tLow);
-                if (tLow === qLow) score = 0;
-                else if (tLow.includes(qLow) || qLow.includes(tLow)) score = Math.min(score, 10);
-
-                results.push({ slug, title, score });
-            }
+            const results = parseKuliSearchResults(html, query);
 
             if (results.length === 0) return null;
 
-            results.sort((a, b) => a.score - b.score);
             const best = results[0];
 
             if (best.score > 25) {
@@ -191,13 +260,14 @@ export async function searchKuli(gameName: string): Promise<{ status: string, sl
 
             log.info(`Best match for "${query}": "${best.title}" (${best.slug}) score=${best.score}`);
 
-            // Verify verification page
+            // Verify game page
             const verifyUrl = `https://kuli.com.ua/${best.slug}`;
             const verifyRes = await fetchWithTimeout(fetchNoCors(verifyUrl, { headers }), 8000);
+            if (verifyRes.status === 404) return null;
             const verifyHtml = await verifyRes.text();
 
-            if (isValidGamePage(verifyHtml)) {
-                return { status: getStatusFromHtml(verifyHtml), slug: best.slug };
+            if (isValidKuliGamePage(verifyHtml)) {
+                return { status: getKuliStatusFromHtml(verifyHtml), slug: best.slug };
             }
 
             return null;

@@ -1,4 +1,4 @@
-// decky-ukr-badge/src/components/Spinner.tsx
+// decky-lang-badge/src/components/Spinner.tsx
 import React from "react";
 
 const Spinner: React.FC = () => {

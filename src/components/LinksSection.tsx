@@ -1,17 +1,25 @@
-// decky-ukr-badge/src/components/LinksSection.tsx
+// src/components/LinksSection.tsx
 import React, { FC, useState, useEffect } from "react";
 import { PanelSection, PanelSectionRow, ButtonItem } from "@decky/ui";
-import { FaSteam, FaYoutube, FaGithub, FaQrcode, FaGamepad, FaBitcoin } from "react-icons/fa";
+import { FaSteam, FaYoutube, FaGithub, FaGamepad } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { call } from "@decky/api";
 import { t } from "../translations";
+import { LanguageConfig, resolveTargetLanguage } from "../languages";
 import { logger } from "../logger";
 
+declare const __PLUGIN_VERSION__: string | undefined;
+
 const log = logger.component("LinksSection");
+const FALLBACK_VERSION: string =
+    typeof __PLUGIN_VERSION__ !== "undefined" && __PLUGIN_VERSION__
+        ? __PLUGIN_VERSION__
+        : "unknown";
 
 interface LinksSectionProps {
-    lang: "en" | "uk";
+    lang: string;
     openUrl: (url: string) => void;
+    targetLang?: LanguageConfig;
 }
 
 interface VersionInfo {
@@ -24,16 +32,12 @@ interface VersionInfo {
     checked_at?: number;
 }
 
-const generateQRCode = (url: string): string => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-};
-
 const Divider: FC = () => (
     <div style={{
         width: "100%",
         height: "1px",
         background: "rgba(255,255,255,0.15)",
-        margin: "16px 0"
+        margin: "12px 0"
     }} />
 );
 
@@ -48,112 +52,95 @@ const LinkButton: FC<{ onClick: () => void; icon: React.ReactNode; label: string
     </PanelSectionRow>
 );
 
-export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl }) => {
-    const kofiUrl = "https://ko-fi.com/yataktyni/tip";
-    const cryptoUrl = "https://nowpayments.io/donation/yataktyni";
-
-    const [showKofiQR, setShowKofiQR] = useState(false);
-    const [showCryptoQR, setShowCryptoQR] = useState(false);
+export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang }) => {
+    const activeTarget = targetLang ?? resolveTargetLanguage("uk");
+    const isUkrainian = Boolean(activeTarget.hasUkrainianCommunity);
     const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
 
-    // Check for updates on mount
     useEffect(() => {
+        let cancelled = false;
         const checkVersion = async () => {
-            // First, get current version immediately
             try {
                 const current = await call<[], string>("get_current_version");
-                setVersionInfo(prev => prev ? { ...prev, current } : {
-                    current,
-                    latest: null,
-                    update_available: false,
-                    source_ok: false,
-                    error: null
-                });
+                if (!cancelled) {
+                    setVersionInfo(prev => prev ? { ...prev, current } : {
+                        current,
+                        latest: null,
+                        update_available: false,
+                        source_ok: false,
+                        error: null
+                    });
+                }
             } catch (e) {
                 log.warn("Failed to get immediate version:", e);
             }
 
-            // Then check for latest on GitHub
             try {
                 const info = await call<[], VersionInfo>("get_latest_version");
                 log.info("Full version info:", info);
-                setVersionInfo(info);
+                if (!cancelled) setVersionInfo(info);
             } catch (e) {
                 log.error("Failed to check version from GitHub:", e);
-                // Preserve current version if we already fetched it
-                setVersionInfo(prev => prev ? { ...prev, update_available: false, source_ok: false, error: "Version check failed" } : {
-                    current: "unknown",
-                    latest: null,
-                    update_available: false,
-                    source_ok: false,
-                    error: "Version check failed"
-                });
+                if (!cancelled) {
+                    setVersionInfo(prev => prev ? { ...prev, update_available: false, source_ok: false, error: "Version check failed" } : {
+                        current: FALLBACK_VERSION,
+                        latest: null,
+                        update_available: false,
+                        source_ok: false,
+                        error: "Version check failed"
+                    });
+                }
             }
         };
         checkVersion();
+        return () => {
+            cancelled = true;
+        };
     }, []);
-
 
     return (
         <PanelSection title={`🔗 ${t("links", lang)}`}>
-            {/* Ko-fi Support */}
-            <PanelSectionRow>
-                <div style={{ padding: "0 4px 8px 4px", background: "rgba(255,255,255,0.01)", borderRadius: "8px", marginBottom: "14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 10px" }}>
-                        <svg height="20" width="20" viewBox="0 0 24 24" fill="#FF5E5B">
-                            <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 5.422-2.721 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-4.417-2.924-5.466-2.937-5.466-.267-.059 1.941-1.42 2.613-2.193.376-.433.973-.243.973-.243s.694-.239 1.139.298c1.328 1.602 2.766 2.368 2.641 3.637zm5.467 1.258c-.792 1.34-2.887 1.229-2.887 1.229V6.366s1.611-.08 2.559.576c1.378.956 1.121 2.809.328 3.264z" />
-                        </svg>
-                        <span style={{ fontSize: "14px", fontWeight: 700 }}>{t("support_on_kofi", lang)}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: "8px", padding: "0 10px" }}>
-                        <button onClick={() => openUrl(kofiUrl)} style={{ flex: 1, background: "#FF5E5B", boxShadow: "0 4px 12px rgba(255, 94, 91, 0.3)", color: "#fff", border: "none", borderRadius: "4px", padding: "10px 12px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>{t("donate", lang)}</button>
-                        <button onClick={() => setShowKofiQR(!showKofiQR)} style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 14px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                            <FaQrcode size={18} />
-                        </button>
-                    </div>
-                    {showKofiQR && (
-                        <div style={{ display: "flex", justifyContent: "center", padding: "12px", background: "#fff", borderRadius: "8px", marginTop: "12px", marginLeft: "10px", marginRight: "10px" }}>
-                            <img src={generateQRCode(kofiUrl)} alt="Ko-fi QR Code" style={{ width: "140px", height: "140px" }} />
-                        </div>
-                    )}
-                </div>
-            </PanelSectionRow>
+            {/* Language-specific Community Portals & Guides */}
+            {isUkrainian ? (
+                <>
+                    <LinkButton onClick={() => openUrl("https://kuli.com.ua/")} icon={<FaGamepad />} label={t("kuli_website", lang)} />
+                    <LinkButton onClick={() => openUrl("https://lbklauncher.com/")} icon={<FaGamepad />} label={t("lbk_website", lang)} />
+                    <LinkButton onClick={() => openUrl("https://www.youtube.com/watch?v=24gxXddKNv0")} icon={<FaYoutube />} label={t("video_guide", lang)} />
+                    <LinkButton onClick={() => openUrl("https://steamcommunity.com/sharedfiles/filedetails/?id=3137617136")} icon={<FaSteam />} label={t("text_guide", lang)} />
+                </>
+            ) : (
+                activeTarget.communityLinks?.map((item) => (
+                    <LinkButton
+                        key={item.url}
+                        onClick={() => openUrl(item.url)}
+                        icon={item.kind === "video" ? <FaYoutube /> : item.kind === "guide" ? <FaSteam /> : <FaGamepad />}
+                        label={item.label}
+                    />
+                ))
+            )}
 
-            {/* Crypto Support */}
-            <PanelSectionRow>
-                <div style={{ padding: "0 4px 8px 4px", background: "rgba(255,255,255,0.01)", borderRadius: "8px", marginTop: "4px", marginBottom: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 10px" }}>
-                        <div style={{ background: "#26A17B", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <FaBitcoin size={14} color="white" />
-                        </div>
-                        <span style={{ fontSize: "14px", fontWeight: 700 }}>{t("crypto_support", lang)}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: "8px", padding: "0 10px" }}>
-                        <button onClick={() => openUrl(cryptoUrl)} style={{ flex: 1, background: "#26A17B", boxShadow: "0 4px 12px rgba(38, 161, 123, 0.3)", color: "#fff", border: "none", borderRadius: "4px", padding: "10px 12px", fontWeight: 800, cursor: "pointer", fontSize: "13px" }}>{t("donate", lang)}</button>
-                        <button onClick={() => setShowCryptoQR(!showCryptoQR)} style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: "4px", padding: "4px 14px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                            <FaQrcode size={18} />
-                        </button>
-                    </div>
-                    {showCryptoQR && (
-                        <div style={{ display: "flex", justifyContent: "center", padding: "12px", background: "#fff", borderRadius: "8px", marginTop: "12px", marginLeft: "10px", marginRight: "10px" }}>
-                            <img src={generateQRCode(cryptoUrl)} alt="Crypto QR Code" style={{ width: "140px", height: "140px" }} />
-                        </div>
-                    )}
-                </div>
-            </PanelSectionRow>
-
-            {/* Divider after donations */}
-            <Divider />
-
-            {/* Info Links */}
-            <LinkButton onClick={() => openUrl("https://kuli.com.ua/")} icon={<FaGamepad />} label={t("kuli_website", lang)} />
-            <LinkButton onClick={() => openUrl("https://www.youtube.com/watch?v=24gxXddKNv0")} icon={<FaYoutube />} label={t("video_guide", lang)} />
-            <LinkButton onClick={() => openUrl("https://steamcommunity.com/sharedfiles/filedetails/?id=3137617136")} icon={<FaSteam />} label={t("text_guide", lang)} />
-            <LinkButton onClick={() => openUrl("https://github.com/yataktyni/decky-ukr-badge")} icon={<FaGithub />} label={t("github_source", lang)} />
+            {/* Universal Plugin Links */}
+            <LinkButton onClick={() => openUrl("https://github.com/yataktyni/decky-lang-badge")} icon={<FaGithub />} label={t("github_source", lang)} />
             <LinkButton onClick={() => openUrl("https://x.com/yataktyni")} icon={<FaXTwitter />} label={t("author_x", lang)} />
 
-            {/* Divider after info links */}
             <Divider />
+
+            {/* Credits / Disclaimer */}
+            <PanelSectionRow>
+                <div style={{
+                    fontSize: "11px",
+                    lineHeight: 1.35,
+                    color: "rgba(255,255,255,0.58)",
+                    width: "100%",
+                    textAlign: "center",
+                    overflowWrap: "anywhere",
+                    padding: "0 6px 6px 6px"
+                }}>
+                    {isUkrainian
+                        ? t("credits_disclaimer", lang)
+                        : t("generic_disclaimer", lang)}
+                </div>
+            </PanelSectionRow>
 
             {/* Version only (update UI hidden) */}
             <PanelSectionRow>
@@ -171,7 +158,7 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl }) => {
                     overflowWrap: "anywhere",
                     padding: "0 6px"
                 }}>
-                    {`Version: v${versionInfo?.current ?? "unknown"}`}
+                    {`${t("version", lang)}: v${versionInfo?.current ?? FALLBACK_VERSION}`}
                 </div>
             </PanelSectionRow>
         </PanelSection>

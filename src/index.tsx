@@ -1,4 +1,4 @@
-// decky-ukr-badge/src/index.tsx
+// decky-lang-badge/src/index.tsx
 import { definePlugin, routerHook } from "@decky/api";
 import {
     afterPatch,
@@ -13,8 +13,11 @@ import { FaFlag } from "react-icons/fa";
 import { Settings } from "./settings";
 
 import Badge from "./components/Badge";
-import { loadSettings } from "./hooks/useSettings";
+import { loadSettings, SettingsContext } from "./hooks/useSettings";
+import { resolveTargetLanguage } from "./languages";
 import { initStorePatch } from "./patches/StorePatch";
+import { initThumbnailPatch } from "./patches/ThumbnailPatch";
+import { openInSteamBrowser } from "./utils";
 
 // Declare appStore for non-Steam game detection
 declare const appStore: {
@@ -81,13 +84,14 @@ function patchLibraryApp() {
                         }
                     }
 
+                    const innerClass = appDetailsClasses?.InnerContainer;
                     const container = findInReactTree(
                         ret,
                         (x: React.ReactElement) =>
                             Array.isArray(x?.props?.children) &&
-                            x?.props?.className?.includes(
-                                appDetailsClasses.InnerContainer,
-                            ),
+                            typeof x?.props?.className === "string" &&
+                            !!innerClass &&
+                            x.props.className.includes(innerClass),
                     );
 
                     if (typeof container !== "object" || !container) {
@@ -123,13 +127,16 @@ function patchLibraryApp() {
                     _: Array<Record<string, unknown>>,
                     ret?: React.ReactElement,
                 ) => {
+                    const overview = findInReactTree(ret, (x: any) => x?.props?.overview)?.props?.overview;
+                    const headerAppId = overview?.appid ? String(overview.appid) : undefined;
+                    const topCapsuleClass = appDetailsHeaderClasses?.TopCapsule;
                     const topCapsule = findInReactTree(
                         ret,
                         (x: React.ReactElement) =>
                             Array.isArray(x?.props?.children) &&
-                            x?.props?.className?.includes(
-                                appDetailsHeaderClasses.TopCapsule,
-                            ),
+                            typeof x?.props?.className === "string" &&
+                            !!topCapsuleClass &&
+                            x.props.className.includes(topCapsuleClass),
                     );
 
                     if (typeof topCapsule !== "object" || !topCapsule) {
@@ -138,6 +145,7 @@ function patchLibraryApp() {
 
                     if (!findInReactTree(topCapsule, (x: any) => x?.key === "ukr-badge-header")) {
                         const protonDBExists = hasProtonDBBadge();
+                        const activeLang = resolveTargetLanguage(SettingsContext.value.targetLanguage);
 
                         const headerIcon = (
                             <span
@@ -153,17 +161,17 @@ function patchLibraryApp() {
                                     opacity: 0.8,
                                     pointerEvents: "auto",
                                 }}
-                                title="Ukrainian Language Support"
+                                title={`${activeLang.englishName} Language Support`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const path = window.location.pathname;
-                                    const match = path.match(/\/app\/(\d+)/);
-                                    if (match) {
-                                        window.open(`https://store.steampowered.com/app/${match[1]}`, "_blank");
+                                    const pathMatch = window.location.pathname.match(/\/app(?:details)?\/(\d+)/);
+                                    const targetId = headerAppId || pathMatch?.[1];
+                                    if (targetId) {
+                                        openInSteamBrowser(`https://store.steampowered.com/app/${targetId}`);
                                     }
                                 }}
                             >
-                                🇺🇦
+                                {activeLang.flag}
                             </span>
                         );
 
@@ -203,15 +211,18 @@ export default definePlugin(() => {
     // Initialize store patch (WebSocket injection)
     const stopStorePatch = initStorePatch();
 
+    // Initialize library & home thumbnail badges
+    const stopThumbnailPatch = initThumbnailPatch();
 
     return {
-        name: "decky-ukr-badge",
-        title: "decky-ukr-badge",
+        name: "Localization Badge",
+        title: "Localization Badge",
         icon: <FaFlag />,
         content: <SettingsPanel />,
         onDismount() {
             routerHook.removePatch("/library/app/:appid", libraryPatch);
             stopStorePatch();
+            stopThumbnailPatch();
         },
     };
 });

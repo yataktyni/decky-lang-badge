@@ -1,9 +1,9 @@
 #!/bin/sh
 set -e
 
-REPO="yataktyni/decky-ukr-badge"
+REPO="yataktyni/decky-lang-badge"
 PLUGIN_DIR="$HOME/homebrew/plugins"
-INSTALL_DIR="$PLUGIN_DIR/decky-ukr-badge"
+INSTALL_DIR="$PLUGIN_DIR/decky-lang-badge"
 
 # Check Decky Loader
 if [ ! -d "$PLUGIN_DIR" ]; then
@@ -52,4 +52,4 @@ sudo chown -R "$USER:$USER" "$INSTALL_DIR"
 echo "Restarting Decky plugin loader..."
 sudo systemctl restart plugin_loader
 
-echo "decky-ukr-badge installed successfully!"
+echo "Localization Badge (decky-lang-badge) installed successfully!"

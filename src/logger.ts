@@ -1,7 +1,7 @@
-// decky-ukr-badge/src/logger.ts
+// decky-lang-badge/src/logger.ts
 // Structured frontend logger for CEF debugging
 
-const PREFIX = "[decky-ukr-badge]";
+const PREFIX = "[decky-lang-badge]";
 
 export const logger = {
     info: (...args: unknown[]) => console.log(PREFIX, ...args),

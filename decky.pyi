@@ -55,35 +55,35 @@ DECKY_PLUGIN_SETTINGS_DIR: str
 """
 The recommended path in which to store configuration files (created automatically).
 Environment variable: `DECKY_PLUGIN_SETTINGS_DIR`.
-e.g.: `/home/deck/homebrew/settings/decky-ukr-badge`
+e.g.: `/home/deck/homebrew/settings/decky-lang-badge`
 """
 
 DECKY_PLUGIN_RUNTIME_DIR: str
 """
 The recommended path in which to store runtime data (created automatically).
 Environment variable: `DECKY_PLUGIN_RUNTIME_DIR`.
-e.g.: `/home/deck/homebrew/data/decky-ukr-badge`
+e.g.: `/home/deck/homebrew/data/decky-lang-badge`
 """
 
 DECKY_PLUGIN_LOG_DIR: str
 """
 The recommended path in which to store persistent logs (created automatically).
 Environment variable: `DECKY_PLUGIN_LOG_DIR`.
-e.g.: `/home/deck/homebrew/logs/decky-ukr-badge`
+e.g.: `/home/deck/homebrew/logs/decky-lang-badge`
 """
 
 DECKY_PLUGIN_DIR: str
 """
 The root of the plugin's directory.
 Environment variable: `DECKY_PLUGIN_DIR`.
-e.g.: `/home/deck/homebrew/plugins/decky-ukr-badge`
+e.g.: `/home/deck/homebrew/plugins/decky-lang-badge`
 """
 
 DECKY_PLUGIN_NAME: str
 """
 The name of the plugin as specified in the 'plugin.json'.
 Environment variable: `DECKY_PLUGIN_NAME`.
-e.g.: `decky-ukr-badge`
+e.g.: `decky-lang-badge`
 """
 
 DECKY_PLUGIN_VERSION: str
@@ -104,7 +104,7 @@ DECKY_PLUGIN_LOG: str
 """
 The path to the plugin's main logfile.
 Environment variable: `DECKY_PLUGIN_LOG`.
-e.g.: `/home/deck/homebrew/logs/decky-ukr-badge/plugin.log`
+e.g.: `/home/deck/homebrew/logs/decky-lang-badge/plugin.log`
 """
 
 # Logging
