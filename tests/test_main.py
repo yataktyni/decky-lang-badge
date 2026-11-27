@@ -211,6 +211,30 @@ async def test_update_plugin_invalid_zip(tmp_path, monkeypatch):
     assert result["error"] == "Invalid zip file"
 
 
+@pytest.mark.asyncio
+async def test_update_plugin_blocks_zip_slip(tmp_path, monkeypatch):
+    plugin = main.Plugin()
+
+    bio = io.BytesIO()
+    with zipfile.ZipFile(bio, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("../escaped.txt", "pwned")
+
+    async def fake_latest():
+        return {"update_available": True, "current": "1.0.0", "latest": "9.9.9"}
+
+    async def fake_binary(url, headers=None):
+        return bio.getvalue()
+
+    monkeypatch.setattr(plugin, "get_latest_version", fake_latest)
+    monkeypatch.setattr(main, "http_get_binary", fake_binary)
+    monkeypatch.setattr(main.os.path, "abspath", lambda _: str(tmp_path / "main.py"))
+
+    result = await plugin.update_plugin()
+    assert result["success"] is False
+    assert "Unsafe zip entry path" in result["error"]
+    assert not (tmp_path.parent / "escaped.txt").exists()
+
+
 def test_settings_load_save_merge_defaults(tmp_path, monkeypatch):
     decky_stub.DECKY_PLUGIN_SETTINGS_DIR = str(tmp_path)
 

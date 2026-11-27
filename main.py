@@ -314,12 +314,24 @@ class Plugin:
                         return 0
 
                     first_parts = [p.split('/')[0] for p in paths if '/' in p]
-                    has_root_dir = len(set(first_parts)) == 1 and all('/' in p for p in paths)
+                    has_root_dir = (
+                        len(set(first_parts)) == 1
+                        and first_parts[0] not in ("", ".", "..")
+                        and all('/' in p for p in paths)
+                    )
 
                     count = 0
                     for info in zf.infolist():
                         if info.is_dir():
                             continue
+
+                        raw_norm = os.path.normpath(info.filename.replace("\\", "/"))
+                        if (
+                            os.path.isabs(raw_norm)
+                            or raw_norm == ".."
+                            or raw_norm.startswith(".." + os.sep)
+                        ):
+                            raise ValueError(f"Unsafe zip entry path: {info.filename}")
 
                         target_name = info.filename
                         if has_root_dir:
@@ -331,9 +343,17 @@ class Plugin:
                             continue
 
                         # Guard against Zip Slip (path traversal outside target_dir)
-                        resolved_base = os.path.realpath(target_dir)
-                        target_path = os.path.realpath(os.path.join(resolved_base, target_name))
-                        if not target_path.startswith(resolved_base + os.sep):
+                        norm_rel = os.path.normpath(target_name.replace("\\", "/"))
+                        if (
+                            os.path.isabs(norm_rel)
+                            or norm_rel == ".."
+                            or norm_rel.startswith(".." + os.sep)
+                        ):
+                            raise ValueError(f"Unsafe zip entry path: {info.filename}")
+
+                        base_norm = os.path.normpath(target_dir)
+                        target_path = os.path.normpath(os.path.join(base_norm, norm_rel))
+                        if os.path.commonpath([base_norm, target_path]) != base_norm:
                             raise ValueError(f"Unsafe zip entry path: {info.filename}")
 
                         os.makedirs(os.path.dirname(target_path), exist_ok=True)
