@@ -52,4 +52,4 @@ sudo chown -R "$USER:$USER" "$INSTALL_DIR"
 echo "Restarting Decky plugin loader..."
 sudo systemctl restart plugin_loader
 
-echo "Localization Badge (decky-lang-badge) installed successfully!"
+echo "Decky Localization Badge (decky-lang-badge) installed successfully!"

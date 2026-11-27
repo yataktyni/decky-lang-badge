@@ -215,8 +215,8 @@ export default definePlugin(() => {
     const stopThumbnailPatch = initThumbnailPatch();
 
     return {
-        name: "Localization Badge",
-        title: "Localization Badge",
+        name: "Decky Localization Badge",
+        title: "Decky Localization Badge",
         icon: <FaFlag />,
         content: <SettingsPanel />,
         onDismount() {

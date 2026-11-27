@@ -1,6 +1,6 @@
-# 🌐 Localization Badge (`decky-lang-badge`)
+# 🌐 Decky Localization Badge (`decky-lang-badge`)
 
-[![Latest Release](https://img.shields.io/github/v/release/yataktyni/decky-lang-badge?label=latest%20release&color=green)](https://github.com/yataktyni/decky-lang-badge/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/yataktyni/decky-lang-badge?color=brightgreen&label=latest%20release)](https://github.com/yataktyni/decky-lang-badge/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 [🇬🇧 English](#-english) • [🇺🇦 Українська](#-українська)
@@ -93,7 +93,7 @@ Automated CI/CD (`.github/workflows/ci.yml` & `.github/workflows/release.yml`) r
 
 ### ⚖️ Credits & Disclaimer
 
-- **[LBK Launcher](https://lbklauncher.com/)** is created by [Vadko](https://github.com/Vadko/lbk-launcher) and the Ukrainian localization community under **GNU GPL v3.0**. `Localization Badge` (`decky-lang-badge`) is an independent, unofficial plugin and is not affiliated with or endorsed by LBK Launcher. It does not bundle, modify, or redistribute any LBK Launcher code or binaries — it only reads the user's local database, opens official `lbk://` deep links, or invokes Flatpak with the official `com.lbk.launcher` flatpakref.
+- **[LBK Launcher](https://lbklauncher.com/)** is created by [Vadko](https://github.com/Vadko/lbk-launcher) and the Ukrainian localization community under **GNU GPL v3.0**. `Decky Localization Badge` (`decky-lang-badge`) is an independent, unofficial plugin and is not affiliated with or endorsed by LBK Launcher. It does not bundle, modify, or redistribute any LBK Launcher code or binaries — it only reads the user's local database, opens official `lbk://` deep links, or invokes Flatpak with the official `com.lbk.launcher` flatpakref.
 - **[Kuli.com.ua](https://kuli.com.ua/)**, **Graj Po Polsku**, **Lokalizace.net**, **Herní Překlady**, **Tribo Gamer**, and **Magyarítások Portál** are independent community localization portals.
 - All translations, catalogs, and trademarks (including Steam, Steam Deck, Valve, and Decky Loader) belong to their respective authors and owners.
 
@@ -101,7 +101,7 @@ Automated CI/CD (`.github/workflows/ci.yml` & `.github/workflows/release.yml`) r
 
 ## 🇺🇦 Українська
 
-Плагін **Localization Badge** (`decky-lang-badge`) для **Decky Loader** на Steam Deck, який показує бейджі локалізації на **мініатюрах у Бібліотеці та на Головній**, на **сторінках ігор** та в **магазині Steam**.
+Плагін **Decky Localization Badge** (`decky-lang-badge`) для **Decky Loader** на Steam Deck, який показує бейджі локалізації на **мініатюрах у Бібліотеці та на Головній**, на **сторінках ігор** та в **магазині Steam**.
 
 Підтримує **29 мов Steam** із повним перекладом інтерфейсу, автовизначенням мови Steam Deck та глибокою інтеграцією з українською спільнотою локалізаторів (**Kuli.com.ua** і **LBK Launcher**).
 

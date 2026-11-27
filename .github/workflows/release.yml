@@ -145,7 +145,7 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   cat > RELEASE_NOTES.md << 'EOF'
-                  ## 🌐 Localization Badge (`decky-lang-badge`) ${{ steps.version.outputs.tag }}
+                  ## 🌐 Decky Localization Badge (`decky-lang-badge`) ${{ steps.version.outputs.tag }}
 
                   ### Installation
                   1. Download `release.zip` below
