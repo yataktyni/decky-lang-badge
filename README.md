@@ -93,12 +93,6 @@ python3 -m pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Automated CI/CD (`.github/workflows/ci.yml` and `.github/workflows/release.yml`) runs frontend and backend tests on every push and before publishing tagged releases.
-
-To release, commit and push all changes to `main` first. Run `pnpm release patch` (or `minor` / `major`) to update both manifest versions, commit them, and push the new tag. To release the version already committed in both manifests, run `pnpm release` without a bump argument. The workflow validates the tag against both manifests before building. Check GitHub Actions and the uploaded `release.zip` to confirm publication.
-
-For a beta or release candidate, set the same version in both manifests, for example `2.1.2-beta.1` or `2.1.2-rc.1`, then commit, push, and run `pnpm release`. These tags create GitHub prereleases and do not replace the latest stable release. For the final release, set both manifests to `2.1.2`, commit, push, and run `pnpm release` again.
-
 ### 🔗 Support & Links
 
 - ❤️ [Support on Ko-fi](https://ko-fi.com/yataktyni/tip)
@@ -128,7 +122,7 @@ For a beta or release candidate, set the same version in both manifests, for exa
 - **🎮 Бейдж на сторінці гри** — чіткий статус (**Офіційна**, **Встановлено**, **Спільнота**, **Відсутня**) із гнучкими координатами X/Y та автоматичним уникненням накладання на ProtonDB.
 - **🛒 Відображення в Steam Store** — автоматично показує бейдж локалізації на сторінках магазину в Gaming Mode.
 - **🧩 Інтеграція з LBK Launcher та Kuli.com.ua (для 🇺🇦)** — читає локальну базу `lbk.db` і встановлені українізатори, показує `✓` (встановлено), `⬆` (є оновлення перекладу) та `🎙` (є українська озвучка), відкриває модальне вікно з командами/прогресом, запускає LBK Launcher прямо в Gaming Mode та вміє встановлювати LBK Launcher (Flatpak) в один клік із налаштувань плагіна.
-- **🌍 Портали спільнот**: швидкі посилання у вкладці «Інфо» для відповідної мови, зокрема `Kuli.com.ua`, `LBK Launcher`, `Graj Po Polsku`, `Lokalizace.net`, `Herní Překlady`, `Sirius Çeviri`, `Tribo Gamer` і `Magyarítások Portál`.
+- **🌍 Портали спільнот**: швидкі посилання у вкладці «Інфо» на окремі спільноти перекладачів та посібники для вибраної мови.
 - **🧭 Компактні налаштування у 3 табах** — **Загальні**, **Позиція**, **Інфо** без нескінченного скролу в Quick Access Menu.
 
 ### 📥 Встановлення
@@ -162,6 +156,50 @@ curl -fsSL https://raw.githubusercontent.com/yataktyni/decky-lang-badge/main/ins
 1. Завантажте й розпакуйте `release.zip` із [релізів](https://github.com/yataktyni/decky-lang-badge/releases/latest).
 2. Скопіюйте папку `decky-lang-badge` до `/home/deck/homebrew/plugins/`.
 3. Перезапустіть Decky Loader або Steam Deck.
+
+### ⚙️ Налаштування
+
+- **⚙️ Загальні**: мова локалізації, тип бейджа, відображення на мініатюрах і в магазині Steam. Для української також доступні інтеграція з LBK Launcher, його встановлення та запуск і оновлення каталогу й кешу.
+- **📍 Позиція**: розташування й відступи бейджа на сторінці гри та в магазині, кут бейджа на мініатюрах.
+- **🔗 Інфо**: ресурси перекладацьких спільнот і посібники для вибраної мови, GitHub, контакт автора, подяки та версія плагіна.
+
+### Встановлення перекладів спільноти на Steam Deck
+
+Переклади створюють незалежні автори, а спосіб встановлення залежить від гри. Перевірте інструкції та сумісність перекладу з вашою версією гри. Збережіть резервні копії збережень і файлів, які потрібно замінити.
+
+1. Перейдіть у Desktop Mode, відкрийте сторінку автора перекладу та завантажте потрібний переклад для своєї гри.
+2. У Steam відкрийте властивості гри й виберіть **Встановлені файли > Огляд**, щоб знайти її файли. Дотримуйтеся інструкцій автора щодо копіювання файлів або запуску інсталятора. Деяким інсталяторам Windows потрібне сумісне середовище Proton, а кроки можуть відрізнятися залежно від гри.
+3. Запустіть гру та перевірте її налаштування мови. Зберігайте копії оригінальних файлів, щоб за потреби скасувати зміни.
+
+Плагін надає посилання на ресурси спільнот, але не перевіряє кожен переклад і не встановлює переклади автоматично, окрім української інтеграції з LBK. Деякі переклади й інсталятори можуть не працювати на Steam Deck.
+
+Ресурси спільнот: [Kuli](https://kuli.com.ua/) і [LBK Launcher](https://lbklauncher.com/) (українська), [Graj Po Polsku](https://grajpopolsku.pl/) (польська), [Lokalizace.net](https://lokalizace.net/) і [Herní Překlady](https://hernipreklady.cz/) (чеська), [Sirius Çeviri](https://siriusceviri.com/) (турецька), [TraduSquare](https://tradusquare.es/) (іспанська), [Tribo Gamer](https://tribogamer.com/) (бразильська португальська), [Magyarítások Portál](https://magyaritasok.hu/) (угорська). Приклади відеопосібників: [турецькою](https://www.youtube.com/watch?v=lgaaOG7Avw8) та [бразильською португальською](https://www.youtube.com/watch?v=Gcs0ZD4eaWU).
+
+### 🛠️ Збірка й тестування з вихідного коду
+
+**Вимоги:** Node.js 20+, pnpm, Python 3.11+ для тестів backend.
+
+```bash
+git clone https://github.com/yataktyni/decky-lang-badge.git
+cd decky-lang-badge
+
+# Залежності, тести та збірка frontend
+pnpm install
+pnpm test:frontend
+pnpm build
+
+# Тести backend
+python3 -m pip install -r requirements-dev.txt
+pytest -q
+```
+
+### 🔗 Підтримка та посилання
+
+- ❤️ [Підтримати на Ko-fi](https://ko-fi.com/yataktyni/tip)
+- 💚 [Підтримати криптовалютою через NOWPayments](https://nowpayments.io/donation/yataktyni)
+- 🐦 [X (Twitter)](https://x.com/yataktyni)
+- 📦 [Репозиторій на GitHub](https://github.com/yataktyni/decky-lang-badge)
+- 🎈 [Kuli.com.ua](https://kuli.com.ua/) • 🧩 [LBK Launcher](https://lbklauncher.com/) ([GitHub](https://github.com/Vadko/lbk-launcher))
 
 ### ⚖️ Подяки та відмова від відповідальності
 
