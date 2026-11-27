@@ -101,13 +101,44 @@ async def test_get_latest_version_http_failure(monkeypatch):
     async def fake_http_get(url, headers=None):
         return None
 
+    async def fake_redirect(url):
+        return None
+
     monkeypatch.setattr(plugin, "get_current_version", fake_current)
     monkeypatch.setattr(main, "http_get", fake_http_get)
+    monkeypatch.setattr(main, "resolve_latest_release_tag_via_redirect", fake_redirect)
 
     info = await plugin.get_latest_version()
     assert info["current"] == "1.0.0"
     assert info["latest"] is None
     assert info["update_available"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_latest_version_falls_back_to_web_redirect_on_api_rate_limit(monkeypatch):
+    plugin = main.Plugin()
+
+    async def fake_current():
+        return "2.2.0"
+
+    async def fake_http_get(url, headers=None):
+        return None
+
+    async def fake_redirect(url):
+        assert url == "https://github.com/yataktyni/decky-lang-badge/releases/latest"
+        return "v2.2.1"
+
+    monkeypatch.setattr(plugin, "get_current_version", fake_current)
+    monkeypatch.setattr(main, "http_get", fake_http_get)
+    monkeypatch.setattr(main, "resolve_latest_release_tag_via_redirect", fake_redirect)
+
+    info = await plugin.get_latest_version()
+    assert info["source_ok"] is True
+    assert info["error"] is None
+    assert info["current"] == "2.2.0"
+    assert info["latest"] == "2.2.1"
+    assert info["latest_tag"] == "v2.2.1"
+    assert info["update_available"] is True
 
 
 @pytest.mark.asyncio

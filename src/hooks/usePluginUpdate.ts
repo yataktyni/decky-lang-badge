@@ -31,6 +31,9 @@ export function setPluginVersionInfo(
     updater: VersionInfo | null | ((prev: VersionInfo | null) => VersionInfo | null)
 ): void {
     const next = typeof updater === "function" ? updater(pluginVersionInfo$.value) : updater;
+    if (next === null) {
+        inFlightCheck = null;
+    }
     pluginVersionInfo$.next(next);
 }
 
@@ -83,13 +86,14 @@ export async function refreshPluginVersionInfo(force = false): Promise<VersionIn
         }
     })();
 
-    inFlightCheck = run.finally(() => {
-        if (inFlightCheck === run) {
+    const tracked = run.finally(() => {
+        if (inFlightCheck === tracked) {
             inFlightCheck = null;
         }
     });
+    inFlightCheck = tracked;
 
-    return inFlightCheck;
+    return tracked;
 }
 
 export function usePluginUpdate(autoCheck = false): {

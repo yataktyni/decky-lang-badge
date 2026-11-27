@@ -60,7 +60,9 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
     const [updateFeedback, setUpdateFeedback] = useState<{ text: string; tone: "success" | "info" | "error" } | null>(null);
 
     useEffect(() => {
-        void refreshPluginVersionInfo(true);
+        if (!versionInfo || !versionInfo.source_ok) {
+            void refreshPluginVersionInfo(false);
+        }
     }, []);
 
     const handleUpdatePlugin = async () => {

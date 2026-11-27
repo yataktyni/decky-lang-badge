@@ -138,6 +138,26 @@ async def http_get_binary(url: str, headers: Dict[str, str] | None = None) -> by
         return None
 
 
+def _sync_resolve_latest_release_tag_via_redirect(url: str) -> str | None:
+    """Resolve latest stable GitHub release tag via web redirect (not subject to 60/hr API rate limit)."""
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": HTTP_USER_AGENT})
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=_get_ssl_context()) as response:
+        final_url = response.geturl() or ""
+    match = re.search(r"/releases/tag/([^/?#]+)$", final_url)
+    if not match:
+        return None
+    return urllib.parse.unquote(match.group(1)).strip()
+
+
+async def resolve_latest_release_tag_via_redirect(url: str) -> str | None:
+    """Non-blocking redirect check for latest stable GitHub release tag."""
+    try:
+        return await asyncio.to_thread(_sync_resolve_latest_release_tag_via_redirect, url)
+    except Exception as e:
+        decky.logger.error(f"Redirect tag lookup error for {url}: {e}")
+        return None
+
+
 # ============================================
 # Plugin Class (Required by Decky)
 # ============================================
@@ -265,35 +285,43 @@ class Plugin:
                 base_result["error"] = f"Misconfigured GitHub API URL: {github_api}"
                 return base_result
 
-            response = await http_get(github_api)
-            if not response:
-                base_result["error"] = "GitHub releases request failed or returned empty response"
-                return base_result
-
-            releases = json.loads(response)
-            if not isinstance(releases, list):
-                base_result["error"] = "GitHub releases API returned non-list JSON"
-                return base_result
-
             best_tag = ""
             best_version = "0.0.0"
             best_tuple = (0, 0, 0)
 
-            for release in releases:
-                if not isinstance(release, dict):
-                    continue
-                if release.get("draft") is True:
-                    continue
-                if release.get("prerelease") is True:
-                    continue
+            response = await http_get(github_api)
+            if response:
+                releases = json.loads(response)
+                if not isinstance(releases, list):
+                    base_result["error"] = "GitHub releases API returned non-list JSON"
+                    return base_result
 
-                tag_name = str(release.get("tag_name", "")).strip()
-                version = normalize_semver_core(tag_name)
-                version_tuple = parse_version_tuple(version)
-                if version_tuple > best_tuple:
-                    best_tuple = version_tuple
-                    best_version = version
-                    best_tag = tag_name
+                for release in releases:
+                    if not isinstance(release, dict):
+                        continue
+                    if release.get("draft") is True:
+                        continue
+                    if release.get("prerelease") is True:
+                        continue
+
+                    tag_name = str(release.get("tag_name", "")).strip()
+                    version = normalize_semver_core(tag_name)
+                    version_tuple = parse_version_tuple(version)
+                    if version_tuple > best_tuple:
+                        best_tuple = version_tuple
+                        best_version = version
+                        best_tag = tag_name
+            else:
+                # Fallback to GitHub web redirect when api.github.com is rate-limited (HTTP 403)
+                redirect_tag = await resolve_latest_release_tag_via_redirect(
+                    "https://github.com/yataktyni/decky-lang-badge/releases/latest"
+                )
+                if not redirect_tag:
+                    base_result["error"] = "GitHub releases request failed or returned empty response"
+                    return base_result
+                best_tag = redirect_tag
+                best_version = normalize_semver_core(redirect_tag)
+                best_tuple = parse_version_tuple(best_version)
 
             if best_tag == "":
                 base_result["source_ok"] = True
