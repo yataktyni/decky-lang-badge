@@ -1,6 +1,6 @@
 {
   "name": "decky-lang-badge",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Displays localization badges for 29 Steam languages on Steam Deck (with Kuli.com.ua & LBK Launcher integration for Ukrainian).",
   "type": "module",
   "author": "Yataktyni",
