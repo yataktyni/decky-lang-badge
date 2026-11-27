@@ -432,8 +432,67 @@ async def test_install_lbk_launcher_runs_flatpak_install(tmp_path, monkeypatch):
     plugin = main.Plugin()
     res = await plugin.install_lbk_launcher()
     assert res["success"] is True
+    assert res["method"] == "flatpak"
     assert captured["cmd"][0:2] == ["/usr/bin/flatpak", "install"]
     assert main.LBK_FLATPAKREF_URL in captured["cmd"]
+
+
+@pytest.mark.asyncio
+async def test_install_lbk_launcher_falls_back_to_appimage_on_flatpak_failure(tmp_path, monkeypatch):
+    class FailingProc:
+        returncode = 1
+        stdout = ""
+        stderr = "flatpak unsupported on this system"
+
+    class FakeStream:
+        def __init__(self, payload: bytes):
+            self._chunks = [payload, b""]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, _size=-1):
+            return self._chunks.pop(0)
+
+    requested_urls = []
+
+    def fake_urlopen(req, timeout=None, context=None):
+        requested_urls.append(req.full_url)
+        return FakeStream(b"#!/bin/sh\necho lbk\n")
+
+    monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/bin/flatpak" if name == "flatpak" else None)
+    monkeypatch.setattr(main, "_get_decky_user_home", lambda: str(tmp_path))
+    monkeypatch.setattr(main, "_get_decky_user", lambda: "deck")
+    monkeypatch.setattr(main.subprocess, "run", lambda cmd, **kwargs: FailingProc())
+    monkeypatch.setattr(
+        main,
+        "_sync_http_get",
+        lambda _url: json.dumps({
+            "assets": [
+                {
+                    "name": "LBK-Launcher-linux.AppImage",
+                    "browser_download_url": "https://github.com/Vadko/lbk-launcher/releases/download/v2.25.2/LBK-Launcher-linux.AppImage",
+                }
+            ]
+        }),
+    )
+    monkeypatch.setattr(main.urllib.request, "urlopen", fake_urlopen)
+
+    plugin = main.Plugin()
+    res = await plugin.install_lbk_launcher()
+    assert res["success"] is True
+    assert res["method"] == "appimage"
+    installed_path = tmp_path / "Applications" / "LBK-Launcher-linux.AppImage"
+    assert installed_path.is_file()
+    assert os.access(installed_path, os.X_OK)
+    assert res["status"]["launch_method"] == "appimage"
+    assert res["status"]["launcher_path"] == str(installed_path)
+    assert requested_urls == [
+        "https://github.com/Vadko/lbk-launcher/releases/download/v2.25.2/LBK-Launcher-linux.AppImage"
+    ]
 
 
 def test_http_helpers_pass_explicit_ssl_context(monkeypatch):

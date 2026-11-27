@@ -53,6 +53,8 @@ DEFAULT_SETTINGS: Settings = {
 
 LBK_FLATPAK_ID = "com.lbk.launcher"
 LBK_FLATPAKREF_URL = "https://flatpak.lbklauncher.com/com.lbk.launcher.flatpakref"
+LBK_APPIMAGE_RELEASES_API = "https://api.github.com/repos/Vadko/lbk-launcher/releases/latest"
+LBK_APPIMAGE_FALLBACK_URL = "https://github.com/Vadko/lbk-launcher/releases/latest/download/LBK-Launcher-linux.AppImage"
 
 HTTP_TIMEOUT = 10
 HTTP_USER_AGENT = "decky-lang-badge/2.1"
@@ -780,44 +782,128 @@ def _get_lbk_catalog_map_sync() -> Dict[str, Any]:
                 pass
 
 
-def _install_lbk_launcher_sync() -> Dict[str, Any]:
-    flatpak_bin = shutil.which("flatpak")
-    if not flatpak_bin:
-        return {"success": False, "error": "Flatpak is not installed on this system"}
+def _resolve_lbk_appimage_url() -> Tuple[str, str]:
+    """Resolve official Linux AppImage asset URL and filename from Vadko/lbk-launcher releases."""
+    try:
+        raw = _sync_http_get(LBK_APPIMAGE_RELEASES_API)
+        data = json.loads(raw)
+        for asset in data.get("assets", []):
+            name = str(asset.get("name") or "")
+            dl_url = str(asset.get("browser_download_url") or "")
+            if (
+                name.lower().endswith(".appimage")
+                and dl_url.startswith("https://github.com/Vadko/lbk-launcher/releases/")
+            ):
+                safe_name = os.path.basename(name)
+                if "lbk" not in safe_name.lower():
+                    safe_name = f"LBK-{safe_name}"
+                return dl_url, safe_name
+    except Exception as e:
+        decky.logger.warn(f"[LBK] Could not query latest AppImage asset, using fallback URL: {e}")
+    return LBK_APPIMAGE_FALLBACK_URL, "LBK-Launcher-linux.AppImage"
 
-    user_home = _get_decky_user_home()
-    user = _get_decky_user()
 
-    # Reuse SteamOS system runtimes when running as root (Decky plugin_loader), otherwise --user
+def _install_lbk_appimage_sync(
+    user_home: str,
+    uid: Optional[int],
+    gid: Optional[int],
+) -> Dict[str, Any]:
+    """Download official universal Linux AppImage for LBK Launcher into ~/Applications."""
+    apps_dir = os.path.join(user_home, "Applications")
     is_root = hasattr(os, "geteuid") and os.geteuid() == 0
-    scope_flag = "--system" if is_root else "--user"
-    cmd = [flatpak_bin, "install", scope_flag, "--noninteractive", "-y", LBK_FLATPAKREF_URL]
+    url, filename = _resolve_lbk_appimage_url()
+    target_path = os.path.join(apps_dir, filename)
+    tmp_path = os.path.join(apps_dir, f".{filename}.tmp")
 
     try:
-        decky.logger.info(f"[LBK] Installing LBK Launcher via Flatpak: {' '.join(cmd)}")
-        env, uid, gid = _build_user_session_env(user, user_home)
-        run_kwargs: Dict[str, Any] = {
-            "capture_output": True,
-            "text": True,
-            "timeout": 300,
-        }
-        if not is_root:
-            run_kwargs["env"] = env
+        os.makedirs(apps_dir, exist_ok=True)
+        if is_root and uid is not None and gid is not None:
+            try:
+                os.chown(apps_dir, uid, gid)
+            except OSError:
+                pass
 
-        proc = subprocess.run(cmd, **run_kwargs)
-        if proc.returncode != 0:
-            err_msg = (proc.stderr or proc.stdout or f"Exit code {proc.returncode}").strip()
-            decky.logger.error(f"[LBK] Flatpak install failed: {err_msg}")
-            return {"success": False, "error": err_msg[-300:]}
+        decky.logger.info(f"[LBK] Downloading universal Linux AppImage from {url} -> {target_path}")
+        req = urllib.request.Request(url, headers={"User-Agent": HTTP_USER_AGENT})
+        with urllib.request.urlopen(req, timeout=300, context=_get_ssl_context()) as response:
+            with open(tmp_path, "wb") as out:
+                while True:
+                    chunk = response.read(65536)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+
+        if not os.path.isfile(tmp_path) or os.path.getsize(tmp_path) == 0:
+            raise ValueError("Downloaded AppImage is empty")
+
+        os.chmod(tmp_path, 0o755)
+        if is_root and uid is not None and gid is not None:
+            try:
+                os.chown(tmp_path, uid, gid)
+            except OSError:
+                pass
+        os.replace(tmp_path, target_path)
 
         status = _get_lbk_status_sync()
-        decky.logger.info(f"[LBK] Flatpak install complete, status={status}")
-        return {"success": True, "status": status}
-    except subprocess.TimeoutExpired:
-        return {"success": False, "error": "Installation timed out"}
+        decky.logger.info(f"[LBK] AppImage install complete: {target_path}, status={status}")
+        return {"success": True, "method": "appimage", "path": target_path, "status": status}
     except Exception as e:
-        decky.logger.error(f"[LBK] Flatpak install exception: {e}")
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        decky.logger.error(f"[LBK] AppImage install failed: {e}")
         return {"success": False, "error": str(e)}
+
+
+def _install_lbk_launcher_sync() -> Dict[str, Any]:
+    user_home = _get_decky_user_home()
+    user = _get_decky_user()
+    env, uid, gid = _build_user_session_env(user, user_home)
+
+    flatpak_bin = shutil.which("flatpak")
+    flatpak_error: Optional[str] = None
+
+    if flatpak_bin:
+        # Reuse SteamOS system runtimes when running as root (Decky plugin_loader), otherwise --user
+        is_root = hasattr(os, "geteuid") and os.geteuid() == 0
+        scope_flag = "--system" if is_root else "--user"
+        cmd = [flatpak_bin, "install", scope_flag, "--noninteractive", "-y", LBK_FLATPAKREF_URL]
+
+        try:
+            decky.logger.info(f"[LBK] Installing LBK Launcher via Flatpak: {' '.join(cmd)}")
+            run_kwargs: Dict[str, Any] = {
+                "capture_output": True,
+                "text": True,
+                "timeout": 300,
+            }
+            if not is_root:
+                run_kwargs["env"] = env
+
+            proc = subprocess.run(cmd, **run_kwargs)
+            if proc.returncode == 0:
+                status = _get_lbk_status_sync()
+                decky.logger.info(f"[LBK] Flatpak install complete, status={status}")
+                return {"success": True, "method": "flatpak", "status": status}
+
+            flatpak_error = (proc.stderr or proc.stdout or f"Exit code {proc.returncode}").strip()[-300:]
+            decky.logger.warn(f"[LBK] Flatpak install failed, falling back to Linux AppImage: {flatpak_error}")
+        except subprocess.TimeoutExpired:
+            flatpak_error = "Flatpak installation timed out"
+            decky.logger.warn(f"[LBK] {flatpak_error}, falling back to Linux AppImage")
+        except Exception as e:
+            flatpak_error = str(e)
+            decky.logger.warn(f"[LBK] Flatpak install exception ({e}), falling back to Linux AppImage")
+    else:
+        decky.logger.info("[LBK] Flatpak not found; installing universal Linux AppImage instead")
+
+    appimage_res = _install_lbk_appimage_sync(user_home, uid, gid)
+    if appimage_res.get("success"):
+        return appimage_res
+
+    err_parts = [p for p in (flatpak_error, appimage_res.get("error")) if p]
+    return {"success": False, "error": " | ".join(err_parts) or "LBK Launcher installation failed"}
 
 
 def _get_lbk_launch_spec_sync(slug: str = "", team: str = "") -> Dict[str, Any]:

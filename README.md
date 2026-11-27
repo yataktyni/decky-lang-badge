@@ -18,7 +18,7 @@ A **Decky Loader** plugin for Steam Deck that displays game localization badges 
 - **🖼️ Library & Home Cover Badges**: compact corner badges on game covers using instant local Steam `bitfield_supported_languages` detection (zero API spam), compatible with Home, Library, Search, Carousel/Gallery themes, and configurable to any of the 4 corners.
 - **🎮 Game Page Badge**: clear status indicator (**Official**, **Installed**, **Community**, **None**) with customizable position, X/Y offsets, and automatic ProtonDB badge avoidance.
 - **🛒 Steam Store Overlay**: displays a localization badge on game pages and supported Store and wishlist covers in Gaming Mode. Cover badges require both Store and thumbnail badges to be enabled. They show official support, available LBK translations, and previously cached community results; uncached official results load gradually as covers become visible.
-- **🧩 Deep Ukrainian Community Integration (for 🇺🇦)**: detects local [LBK Launcher](https://lbklauncher.com/) database (`lbk.db`) & installed translations, shows `✓` (installed), `⬆` (translation update available), and `🎙` (voiceover available), opens an in-Steam modal with team/version/progress details, launches LBK Launcher visibly inside Gaming Mode, and supports 1-click Flatpak installation right from settings; falls back to [Kuli.com.ua](https://kuli.com.ua/).
+- **🧩 Deep Ukrainian Community Integration (for 🇺🇦)**: detects local [LBK Launcher](https://lbklauncher.com/) database (`lbk.db`) & installed translations, shows `✓` (installed), `⬆` (translation update available), and `🎙` (voiceover available), opens an in-Steam modal with team/version/progress details, launches LBK Launcher visibly inside Gaming Mode, and supports 1-click installation right from settings (Flatpak on SteamOS with automatic Linux AppImage fallback); falls back to [Kuli.com.ua](https://kuli.com.ua/).
 - **🌍 Community Portals**: quick links in the Info tab for selected translation communities and guides for the chosen language.
 - **🧭 Compact 3-Tab Settings UI**: organized into **General**, **Layout**, and **Info** tabs so you never have to scroll through long lists in the Quick Access Menu.
 
@@ -104,7 +104,7 @@ pytest -q
 
 ### ⚖️ Credits & Disclaimer
 
-- **[LBK Launcher](https://lbklauncher.com/)** is created by [Vadko](https://github.com/Vadko/lbk-launcher) and the Ukrainian localization community under **GNU GPL v3.0**. `Decky Localization Badge` (`decky-lang-badge`) is an independent, unofficial plugin and is not affiliated with or endorsed by LBK Launcher. It does not bundle, modify, or redistribute any LBK Launcher code or binaries; it only reads the user's local database, opens official `lbk://` deep links, or invokes Flatpak with the official `com.lbk.launcher` flatpakref.
+- **[LBK Launcher](https://lbklauncher.com/)** is created by [Vadko](https://github.com/Vadko/lbk-launcher) and the Ukrainian localization community under **GNU GPL v3.0**. `Decky Localization Badge` (`decky-lang-badge`) is an independent, unofficial plugin and is not affiliated with or endorsed by LBK Launcher. It does not bundle, modify, or redistribute any LBK Launcher code or binaries; it only reads the user's local database, opens official `lbk://` deep links, or downloads the official `com.lbk.launcher` Flatpak / Linux AppImage release.
 - **[Kuli.com.ua](https://kuli.com.ua/)**, **Graj Po Polsku**, **Lokalizace.net**, **PřekladyHer.eu**, **Herní Překlady**, **Sirius Çeviri**, **Oyun Çeviri**, **TraduSquare**, **Tribo Gamer**, **Central de Traduções**, **schote.biz**, **TraductionJeux.com**, **RPG Italia**, **Magyarítások Portál**, and **Việt Hóa Game** are independent community localization portals.
 - All translations, catalogs, and trademarks (including Steam, Steam Deck, Valve, and Decky Loader) belong to their respective authors and owners.
 
@@ -123,7 +123,7 @@ pytest -q
 - **🖼️ Мініатюри у Бібліотеці та на Головній**: компактні позначки на обкладинках ігор із миттєвою локальною перевіркою через `bitfield_supported_languages` Steam (працює на Головній, у Бібліотеці, Пошуку та з темами каруселі/галереї, вибір будь-якого з 4 кутів).
 - **🎮 Бейдж на сторінці гри**: чіткий статус (**Офіційна**, **Встановлено**, **Спільнота**, **Відсутня**) із гнучкими координатами X/Y та автоматичним уникненням накладання на ProtonDB.
 - **🛒 Відображення в Steam Store**: показує бейдж локалізації на сторінках ігор і підтримуваних обкладинках магазину та списку бажаного в Gaming Mode. Для бейджів на обкладинках потрібно ввімкнути відображення і в магазині, і на мініатюрах. Вони показують офіційну підтримку, доступні переклади LBK та раніше закешовані результати спільноти; незакешовані офіційні результати завантажуються поступово для видимих обкладинок.
-- **🧩 Інтеграція з LBK Launcher та Kuli.com.ua (для 🇺🇦)**: читає локальну базу `lbk.db` і встановлені українізатори, показує `✓` (встановлено), `⬆` (є оновлення перекладу) та `🎙` (є українська озвучка), відкриває модальне вікно з командами/прогресом, запускає LBK Launcher прямо в Gaming Mode та вміє встановлювати LBK Launcher (Flatpak) в один клік із налаштувань плагіна.
+- **🧩 Інтеграція з LBK Launcher та Kuli.com.ua (для 🇺🇦)**: читає локальну базу `lbk.db` і встановлені українізатори, показує `✓` (встановлено), `⬆` (є оновлення перекладу) та `🎙` (є українська озвучка), відкриває модальне вікно з командами/прогресом, запускає LBK Launcher прямо в Gaming Mode та вміє встановлювати LBK Launcher в один клік із налаштувань плагіна (Flatpak на SteamOS з автоматичним резервом на Linux AppImage).
 - **🌍 Портали спільнот**: швидкі посилання у вкладці «Інфо» на окремі спільноти перекладачів та посібники для вибраної мови.
 - **🧭 Компактні налаштування у 3 табах**: **Загальні**, **Позиція**, **Інфо** без нескінченного скролу в Quick Access Menu.
 
@@ -205,7 +205,7 @@ pytest -q
 
 ### ⚖️ Подяки та відмова від відповідальності
 
-- **[LBK Launcher](https://lbklauncher.com/)** створений [Vadko](https://github.com/Vadko/lbk-launcher) та українською спільнотою локалізаторів за ліцензією **GNU GPL v3.0**. Цей плагін є незалежним стороннім проєктом, не афілійований із LBK Launcher і не включає, не змінює та не розповсюджує його код або файли; інтеграція працює виключно через локальну базу користувача, офіційні `lbk://` посилання та офіційний Flatpak (`com.lbk.launcher`).
+- **[LBK Launcher](https://lbklauncher.com/)** створений [Vadko](https://github.com/Vadko/lbk-launcher) та українською спільнотою локалізаторів за ліцензією **GNU GPL v3.0**. Цей плагін є незалежним стороннім проєктом, не афілійований із LBK Launcher і не включає, не змінює та не розповсюджує його код або файли; інтеграція працює виключно через локальну базу користувача, офіційні `lbk://` посилання та офіційний реліз Flatpak (`com.lbk.launcher`) або Linux AppImage.
 - **[Kuli.com.ua](https://kuli.com.ua/)** та інші портали спільнот є незалежними ресурсами.
 - Усі права на переклади, каталоги та торговельні марки (включно з Steam, Steam Deck, Valve та Decky Loader) належать їхнім відповідним авторам і правовласникам.
 
