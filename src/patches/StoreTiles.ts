@@ -16,7 +16,7 @@ export function installStoreTiles(config: TileConfig): void {
     const results = new Map<string, boolean>();
     const pending = new Set<string>();
     const queue: string[] = [];
-    const controller = new AbortController();
+    let controller: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let scanTimer: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
@@ -45,6 +45,8 @@ export function installStoreTiles(config: TileConfig): void {
         if (disposed || running || !queue.length) return;
         running = true;
         const appId = queue.shift()!;
+        controller = new AbortController();
+        const requestTimer = setTimeout(() => controller?.abort(), 10000);
         try {
             const response = await fetch(`/api/appdetails?appids=${appId}&l=en&filters=basic`, { signal: controller.signal });
             if (disposed) return;
@@ -66,6 +68,9 @@ export function installStoreTiles(config: TileConfig): void {
             }
         } catch {
             // A failed request leaves the community badge intact and can be retried on a later visit.
+        } finally {
+            clearTimeout(requestTimer);
+            controller = undefined;
         }
         running = false;
         pending.delete(appId);
@@ -131,7 +136,7 @@ export function installStoreTiles(config: TileConfig): void {
     scan();
     page.__localizationTilesCleanup = () => {
         disposed = true;
-        controller.abort();
+        controller?.abort();
         if (timer) clearTimeout(timer);
         if (scanTimer) clearTimeout(scanTimer);
         observer.disconnect();

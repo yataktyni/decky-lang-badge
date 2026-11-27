@@ -250,8 +250,16 @@ async function refreshStoreTiles(): Promise<void> {
         return;
     }
     const language = resolveTargetLanguage(settings.targetLanguage);
-    const catalog = language.hasUkrainianCommunity && settings.enableLbkIntegration
-        ? (await getLbkCatalogMap()).games : {};
+    let catalog = {};
+    if (language.hasUkrainianCommunity && settings.enableLbkIntegration) {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const fallback = new Promise<null>((resolve) => { timeout = setTimeout(() => resolve(null), 3000); });
+            catalog = (await Promise.race([getLbkCatalogMap(), fallback]))?.games ?? {};
+        } finally {
+            if (timeout) clearTimeout(timeout);
+        }
+    }
     if (generation !== tilesGeneration || socket !== storeWebSocket || settings !== SettingsContext.value || !isStoreMounted || !wsReady) return;
     const names = SUPPORTED_LANGUAGES.map((item) => item.englishName.toLowerCase().replace(" (", " - ").replace(")", ""));
     const languages = [...new Set([...names, "spanish", "portuguese", "portuguese - portugal"].filter(language.storeMatch))];
