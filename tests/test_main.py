@@ -434,3 +434,47 @@ async def test_install_lbk_launcher_runs_flatpak_install(tmp_path, monkeypatch):
     assert res["success"] is True
     assert captured["cmd"][0:2] == ["/usr/bin/flatpak", "install"]
     assert main.LBK_FLATPAKREF_URL in captured["cmd"]
+
+
+def test_http_helpers_pass_explicit_ssl_context(monkeypatch):
+    sentinel_ctx = object()
+    captured_contexts = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def fake_urlopen(req, timeout=None, context=None):
+        captured_contexts.append(context)
+        return FakeResponse()
+
+    monkeypatch.setattr(main, "_get_ssl_context", lambda: sentinel_ctx)
+    monkeypatch.setattr(main.urllib.request, "urlopen", fake_urlopen)
+
+    assert main._sync_http_get("https://api.github.com/test") == '{"ok": true}'
+    assert main._sync_http_get_binary("https://github.com/test.zip") == b'{"ok": true}'
+    assert captured_contexts == [sentinel_ctx, sentinel_ctx]
+
+
+def test_get_ssl_context_prefers_system_ca_bundle(tmp_path, monkeypatch):
+    fake_ca = tmp_path / "ca.pem"
+    fake_ca.write_text("dummy", encoding="utf-8")
+    seen_cafile = {}
+
+    def fake_create_default_context(cafile=None):
+        seen_cafile["cafile"] = cafile
+        return "ctx"
+
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    monkeypatch.setitem(sys.modules, "certifi", None)
+    monkeypatch.setattr(main, "SYSTEM_CA_BUNDLE_CANDIDATES", (str(fake_ca),))
+    monkeypatch.setattr(main.ssl, "create_default_context", fake_create_default_context)
+
+    assert main._get_ssl_context() == "ctx"
+    assert seen_cafile["cafile"] == str(fake_ca)

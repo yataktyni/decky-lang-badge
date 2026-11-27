@@ -213,6 +213,8 @@ pytest -q
 
 [![Release downloads / Завантаження релізів](https://img.shields.io/github/downloads/yataktyni/decky-lang-badge/total)](https://github.com/yataktyni/decky-lang-badge/releases)
 
+[![Release download history / Історія завантажень](https://release-monitor.com/chart/yataktyni/decky-lang-badge.svg?range=month&theme=dark)](https://release-monitor.com/#/yataktyni/decky-lang-badge)
+
 [![Star history / Історія зірок](https://repostars.dev/api/embed?repo=yataktyni/decky-lang-badge&theme=dark)](https://repostars.dev/?repos=yataktyni/decky-lang-badge&theme=dark)
 
 ---

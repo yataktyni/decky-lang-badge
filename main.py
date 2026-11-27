@@ -7,6 +7,7 @@ import os
 import pwd
 import shutil
 import sqlite3
+import ssl
 import subprocess
 import urllib.parse
 import urllib.request
@@ -61,6 +62,36 @@ HTTP_USER_AGENT = "decky-lang-badge/2.1"
 # HTTP Helpers
 # ============================================
 
+SYSTEM_CA_BUNDLE_CANDIDATES = (
+    "/etc/ssl/certs/ca-certificates.crt",
+    "/etc/ssl/cert.pem",
+    "/etc/pki/tls/certs/ca-bundle.crt",
+    "/etc/ca-certificates/extracted/tls-ca-bundle.pem",
+)
+
+
+def _get_ssl_context() -> ssl.SSLContext:
+    """Build an SSLContext that locates CA certificates even inside Decky's PyInstaller runtime."""
+    env_ca = os.environ.get("SSL_CERT_FILE", "").strip()
+    if env_ca and os.path.isfile(env_ca):
+        return ssl.create_default_context(cafile=env_ca)
+
+    try:
+        import certifi  # type: ignore
+
+        certifi_ca = certifi.where()
+        if certifi_ca and os.path.isfile(certifi_ca):
+            return ssl.create_default_context(cafile=certifi_ca)
+    except Exception:
+        pass
+
+    for candidate in SYSTEM_CA_BUNDLE_CANDIDATES:
+        if os.path.isfile(candidate):
+            return ssl.create_default_context(cafile=candidate)
+
+    return ssl.create_default_context()
+
+
 def _sync_http_get(url: str, headers: Dict[str, str] | None = None) -> str:
     """Synchronous HTTP GET - to be called via asyncio.to_thread()."""
     headers = headers or {}
@@ -70,7 +101,7 @@ def _sync_http_get(url: str, headers: Dict[str, str] | None = None) -> str:
     for key, value in headers.items():
         req.add_header(key, value)
 
-    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=_get_ssl_context()) as response:
         return response.read().decode("utf-8")
 
 
@@ -92,7 +123,7 @@ def _sync_http_get_binary(url: str, headers: Dict[str, str] | None = None) -> by
     for key, value in headers.items():
         req.add_header(key, value)
 
-    with urllib.request.urlopen(req, timeout=30) as response:
+    with urllib.request.urlopen(req, timeout=30, context=_get_ssl_context()) as response:
         return response.read()
 
 
