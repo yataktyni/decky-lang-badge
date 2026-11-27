@@ -212,7 +212,7 @@ class Plugin:
         github_api = (github_api or "").strip().split()[0]
 
         base_result: Dict[str, Any] = {
-            "current": current_version,
+            "current": current_version_raw,
             "latest": None,
             "latest_tag": None,
             "update_available": False,
@@ -267,7 +267,7 @@ class Plugin:
                 base_result["error"] = "No stable releases found"
                 return base_result
 
-            update_available = best_tuple > current_tuple
+            update_available = best_tuple > current_tuple or (best_tuple == current_tuple and "-" in current_version_raw)
             base_result["source_ok"] = True
             base_result["latest"] = best_version
             base_result["latest_tag"] = best_tag

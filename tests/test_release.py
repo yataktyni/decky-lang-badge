@@ -88,3 +88,15 @@ def test_release_without_bump_tags_current_version(release_repo):
     run(repo, "bash", "scripts/release.sh")
     assert version(repo) == version(repo, "plugin.json") == "1.2.3"
     assert run(repo, "git", "--git-dir", str(remote), "tag", "--list").stdout.strip() == "v1.2.3"
+
+
+@pytest.mark.parametrize("prerelease", ["1.2.4-beta.1", "1.2.4-rc.1"])
+def test_prerelease_tags_matching_version(release_repo, prerelease):
+    repo, remote = release_repo
+    for name in ("package.json", "plugin.json"):
+        (repo / name).write_text(json.dumps({"version": prerelease}))
+    run(repo, "git", "add", "package.json", "plugin.json")
+    run(repo, "git", "commit", "-m", "prepare prerelease")
+    run(repo, "git", "push", "origin", "main")
+    run(repo, "bash", "scripts/release.sh")
+    assert run(repo, "git", "--git-dir", str(remote), "tag", "--list").stdout.strip() == f"v{prerelease}"

@@ -44,7 +44,7 @@ fi
 
 if [[ -n "$BUMP_TYPE" ]]; then
     VERSION=$(bash "$SCRIPT_DIR/update-version.sh" "$BUMP_TYPE" --print)
-elif [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+elif [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(beta|rc)\.[1-9][0-9]*)?$ ]]; then
     echo "Invalid version: $VERSION"
     exit 1
 fi

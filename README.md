@@ -97,6 +97,8 @@ Automated CI/CD (`.github/workflows/ci.yml` and `.github/workflows/release.yml`)
 
 To release, commit and push all changes to `main` first. Run `pnpm release patch` (or `minor` / `major`) to update both manifest versions, commit them, and push the new tag. To release the version already committed in both manifests, run `pnpm release` without a bump argument. The workflow validates the tag against both manifests before building. Check GitHub Actions and the uploaded `release.zip` to confirm publication.
 
+For a beta or release candidate, set the same version in both manifests, for example `2.1.2-beta.1` or `2.1.2-rc.1`, then commit, push, and run `pnpm release`. These tags create GitHub prereleases and do not replace the latest stable release. For the final release, set both manifests to `2.1.2`, commit, push, and run `pnpm release` again.
+
 ### 🔗 Support & Links
 
 - ❤️ [Support on Ko-fi](https://ko-fi.com/yataktyni/tip)

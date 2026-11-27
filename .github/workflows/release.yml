@@ -19,7 +19,7 @@ jobs:
               env:
                   RELEASE_TAG: ${{ github.ref_name }}
               run: |
-                  [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+                  [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(beta|rc)\.[1-9][0-9]*)?$ ]]
                   VERSION=${RELEASE_TAG#v}
                   test "$(jq -r .version package.json)" = "$VERSION"
                   test "$(jq -r .version plugin.json)" = "$VERSION"
@@ -160,7 +160,12 @@ jobs:
                   📖 [Full documentation](https://github.com/yataktyni/decky-lang-badge#readme)
                   EOF
 
+                  RELEASE_OPTIONS=()
+                  if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+                    RELEASE_OPTIONS+=(--prerelease)
+                  fi
                   gh release create "${{ steps.version.outputs.tag }}" \
                     --title "Release ${{ steps.version.outputs.tag }}" \
                     --notes-file RELEASE_NOTES.md \
+                    "${RELEASE_OPTIONS[@]}" \
                     release.zip

@@ -134,6 +134,27 @@ async def test_get_latest_version_ignores_draft_and_prerelease(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_prerelease_displays_suffix_and_recognizes_stable_release(monkeypatch):
+    plugin = main.Plugin()
+
+    async def fake_current():
+        return "1.2.3-rc.1"
+
+    async def fake_http_get(url, headers=None):
+        return json.dumps([
+            {"tag_name": "v1.2.3", "draft": False, "prerelease": False},
+            {"tag_name": "v1.2.4-beta.1", "draft": False, "prerelease": True},
+        ])
+
+    monkeypatch.setattr(plugin, "get_current_version", fake_current)
+    monkeypatch.setattr(main, "http_get", fake_http_get)
+    info = await plugin.get_latest_version()
+    assert info["current"] == "1.2.3-rc.1"
+    assert info["latest"] == "1.2.3"
+    assert info["update_available"] is True
+
+
+@pytest.mark.asyncio
 async def test_update_plugin_already_current(monkeypatch):
     plugin = main.Plugin()
 
