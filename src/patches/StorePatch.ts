@@ -9,6 +9,7 @@ import { SUPPORTED_LANGUAGES, isOfficialLanguageInStoreText, resolveTargetLangua
 import { installStoreTiles } from "./StoreTiles";
 import { t, resolveUiLanguage } from "../translations";
 import { urlifyGameName, searchKuli, fetchWithTimeout, isValidKuliGamePage, getKuliStatusFromHtml } from "../utils";
+import { getRussianCommunityUrl } from "../russianCommunity";
 import { logger } from "../logger";
 
 const log = logger.component("StorePatch");
@@ -111,6 +112,7 @@ async function injectBadgeIntoStore(appId: string) {
         let confirmedOnKuli = false;
         let kuliSlug = urlifyGameName(gameName);
         let kuliStatusFromHtml: string | null = null;
+        let russianUrl: string | null = null;
 
         // 2. Check Kuli (Ukrainian community catalog)
         if (isUkrainian) {
@@ -139,6 +141,11 @@ async function injectBadgeIntoStore(appId: string) {
             }
         }
 
+        if (targetLang.code === "ru") {
+            try { russianUrl = await getRussianCommunityUrl(appId); }
+            catch (e) { log.warn("Store Russian community check failed:", e); }
+        }
+
         // 3. Determine Final Status (Steam Official > LBK Installed > LBK/Kuli Community > None)
         const hasLbk = Boolean(isUkrainian && lbkData?.available && lbkData.translations.length > 0);
         const isLbkInstalled = Boolean(hasLbk && lbkData?.installed_any);
@@ -152,6 +159,8 @@ async function injectBadgeIntoStore(appId: string) {
             status = "COMMUNITY";
         } else if (confirmedOnKuli && kuliStatusFromHtml) {
             status = kuliStatusFromHtml === "OFFICIAL" ? "OFFICIAL" : "COMMUNITY";
+        } else if (russianUrl) {
+            status = "COMMUNITY";
         }
 
         const config = BADGE_COLORS[status] || BADGE_COLORS.NONE;
@@ -165,12 +174,12 @@ async function injectBadgeIntoStore(appId: string) {
             ? `<span style="font-size:11px;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,0.2);line-height:1.3;">${isLbkInstalled && status === "OFFICIAL" ? "✓ LBK" : "LBK"}</span>`
             : "";
 
-        const isClickable = confirmedOnKuli;
+        const isClickable = confirmedOnKuli || Boolean(russianUrl);
         const safeOffsetX = Number(SettingsContext.value.storeOffsetX) || 0;
         const safeOffsetY = Number(SettingsContext.value.storeOffsetY) || 0;
-        const safeKuliUrl = isClickable
+        const safeKuliUrl = russianUrl || (confirmedOnKuli
             ? `https://kuli.com.ua/${encodeURI(kuliSlug.replace(/^\/+/, ""))}`
-            : "";
+            : "");
 
         // Abort if user navigated to another app while we were fetching
         if (storeAppId$.value !== appId || storeWebSocket !== socket || SettingsContext.value !== settings || !SettingsContext.value.showOnStore) return;
@@ -262,7 +271,7 @@ async function refreshStoreTiles(): Promise<void> {
     }
     if (generation !== tilesGeneration || socket !== storeWebSocket || settings !== SettingsContext.value || !isStoreMounted || !wsReady) return;
     const names = SUPPORTED_LANGUAGES.map((item) => item.englishName.toLowerCase().replace(" (", " - ").replace(")", ""));
-    const languages = [...new Set([...names, "spanish", "portuguese", "portuguese - portugal"].filter(language.storeMatch))];
+    const languages = [...new Set([...names, "spanish", "portuguese", "portuguese - portugal", "russian"].filter(language.storeMatch))];
     const uiLang = resolveUiLanguage(settings.targetLanguage, language);
     const labels = { official: t("official", uiLang), community: t("community", uiLang), installed: t("lbk_installed", uiLang) };
     const config = { flag: language.flag, languages, position: settings.thumbnailPosition, catalog, cached: getCachedBadgeStatuses(language.code), labels };

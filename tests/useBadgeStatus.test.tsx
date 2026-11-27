@@ -1,6 +1,7 @@
 import React from "react";
+import { resolveTargetLanguage } from "../src/languages";
 import { render, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const fetchNoCorsMock = vi.fn();
 const cleanNonSteamNameMock = vi.fn((s: string) => s);
@@ -8,6 +9,9 @@ const searchKuliMock = vi.fn();
 const fetchWithTimeoutMock = vi.fn();
 const isSteamAppIdMock = vi.fn();
 const callBackendMock = vi.fn();
+const russianCommunityMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../src/russianCommunity", () => ({ getRussianCommunityUrl: russianCommunityMock }));
 
 vi.mock("@decky/api", () => ({
   fetchNoCors: (...args: any[]) => fetchNoCorsMock(...args),
@@ -48,6 +52,7 @@ function HookProbe(props: { appId?: string; appName?: string; onState: (s: any) 
 }
 
 describe("useBadgeStatus", () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     clearBadgeStatusCache();
     fetchNoCorsMock.mockReset();
@@ -57,6 +62,7 @@ describe("useBadgeStatus", () => {
     fetchWithTimeoutMock.mockReset();
     isSteamAppIdMock.mockReset();
     callBackendMock.mockReset();
+    russianCommunityMock.mockReset();
   });
 
   it("returns OFFICIAL when Steam metadata includes ukrainian", async () => {
@@ -120,5 +126,58 @@ describe("useBadgeStatus", () => {
       expect(latest.loading).toBe(false);
       expect(latest.status).toBe("NONE");
     });
+  });
+
+  it("keeps stale results visible and does not overwrite them when refresh fails", async () => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    isSteamAppIdMock.mockReturnValue(true);
+    fetchWithTimeoutMock.mockResolvedValue({ json: async () => ({
+      "456": { success: true, data: { name: "Game", supported_languages: "English" } },
+    }) });
+    searchKuliMock.mockResolvedValue({ status: "COMMUNITY", slug: "game" });
+    let latest: any;
+    const first = render(React.createElement(HookProbe, { appId: "456", appName: "Game", onState: (s: any) => (latest = s) }));
+    await waitFor(() => expect(latest.status).toBe("COMMUNITY"));
+    first.unmount();
+
+    clock.mockReturnValue(now + 8 * 24 * 60 * 60 * 1000);
+    fetchWithTimeoutMock.mockRejectedValue(new Error("offline"));
+    searchKuliMock.mockRejectedValue(new Error("offline"));
+    render(React.createElement(HookProbe, { appId: "456", appName: "Game", onState: (s: any) => (latest = s) }));
+    expect(latest.status).toBe("COMMUNITY");
+    expect(latest.loading).toBe(false);
+    await waitFor(() => expect(searchKuliMock).toHaveBeenCalledTimes(2));
+    expect(latest.url).toBe("https://kuli.com.ua/game");
+    expect(JSON.parse(window.localStorage.getItem("decky_lang_badge_status_cache_v2")!)["uk:456"].cachedAt).toBe(now);
+  });
+
+  it("does not show a previous game's status while the next game loads", async () => {
+    isSteamAppIdMock.mockReturnValue(true);
+    fetchWithTimeoutMock.mockResolvedValueOnce({ json: async () => ({
+      "123": { success: true, data: { name: "First", supported_languages: "Ukrainian" } },
+    }) }).mockReturnValueOnce(new Promise(() => {}));
+    searchKuliMock.mockResolvedValue(null);
+    let latest: any;
+    const probe = (appId: string) => React.createElement(HookProbe, { appId, appName: "Game", onState: (s: any) => (latest = s) });
+    const { rerender } = render(probe("123"));
+    await waitFor(() => expect(latest.status).toBe("OFFICIAL"));
+    rerender(probe("456"));
+    expect(latest.loading).toBe(true);
+    expect(latest.status).toBeNull();
+    expect(latest.url).toBeNull();
+  });
+
+  it("shows Russian community status and the source link for a Steam game", async () => {
+    isSteamAppIdMock.mockReturnValue(true);
+    fetchWithTimeoutMock.mockResolvedValue({ json: async () => ({
+      "123": { success: true, data: { name: "Game", supported_languages: "English" } },
+    }) });
+    russianCommunityMock.mockResolvedValue("https://example.test/guide");
+    let latest: any;
+    function Probe() { latest = useBadgeStatus("123", "Game", resolveTargetLanguage("ru")); return null; }
+    render(React.createElement(Probe));
+    await waitFor(() => expect(latest.status).toBe("COMMUNITY"));
+    expect(latest.url).toBe("https://example.test/guide");
   });
 });

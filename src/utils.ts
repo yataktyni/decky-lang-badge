@@ -213,6 +213,7 @@ export function parseKuliSearchResults(
 
 export async function searchKuli(gameName: string): Promise<{ status: string; slug: string } | null> {
     if (!gameName) return null;
+    let searchFailed = false;
 
     // Internal helper to perform search with a given query
     async function performSearch(query: string): Promise<{ status: string; slug: string } | null> {
@@ -245,6 +246,7 @@ export async function searchKuli(gameName: string): Promise<{ status: string; sl
             log.info(`Searching Kuli for: ${query}`);
             const searchUrl = `https://kuli.com.ua/games?query=${encodeURIComponent(query)}`;
             const res = await fetchWithTimeout(fetchNoCors(searchUrl, { headers }), 10000);
+            if (res.status >= 400) throw new Error(`Kuli search returned ${res.status}`);
 
             const html = await res.text();
             const results = parseKuliSearchResults(html, query);
@@ -264,6 +266,7 @@ export async function searchKuli(gameName: string): Promise<{ status: string; sl
             const verifyUrl = `https://kuli.com.ua/${best.slug}`;
             const verifyRes = await fetchWithTimeout(fetchNoCors(verifyUrl, { headers }), 8000);
             if (verifyRes.status === 404) return null;
+            if (verifyRes.status >= 400) throw new Error(`Kuli page returned ${verifyRes.status}`);
             const verifyHtml = await verifyRes.text();
 
             if (isValidKuliGamePage(verifyHtml)) {
@@ -272,6 +275,7 @@ export async function searchKuli(gameName: string): Promise<{ status: string; sl
 
             return null;
         } catch (e) {
+            searchFailed = true;
             log.error(`performSearch failed for ${query}:`, e);
             return null;
         }
@@ -290,5 +294,6 @@ export async function searchKuli(gameName: string): Promise<{ status: string; sl
         if (result) return result;
     }
 
+    if (searchFailed) throw new Error("Kuli search failed");
     return null;
 }

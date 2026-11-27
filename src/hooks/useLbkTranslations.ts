@@ -312,9 +312,11 @@ export function useLbkTranslations(
         appId && enabled && lbkCache[appId] ? lbkCache[appId] : EMPTY_RESULT
     );
     const [loading, setLoading] = useState<boolean>(Boolean(appId && enabled && !lbkCache[appId]));
+    const [dataAppId, setDataAppId] = useState(appId);
 
     useEffect(() => {
         let cancelled = false;
+        setDataAppId(appId);
 
         if (!appId || !enabled) {
             setData(EMPTY_RESULT);
@@ -324,7 +326,11 @@ export function useLbkTranslations(
 
         const fetchLatest = (showSpinner: boolean) => {
             if (showSpinner) setLoading(true);
-            call<[string], LbkTranslationsResult>("get_lbk_translations", appId)
+            let timer: ReturnType<typeof setTimeout>;
+            Promise.race([
+                call<[string], LbkTranslationsResult>("get_lbk_translations", appId),
+                new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("LBK request timed out")), 5000); }),
+            ])
                 .then((result) => {
                     if (cancelled) return;
                     const normalized: LbkTranslationsResult = result && Array.isArray(result.translations)
@@ -338,6 +344,7 @@ export function useLbkTranslations(
                     if (!cancelled && showSpinner) setData(EMPTY_RESULT);
                 })
                 .finally(() => {
+                    clearTimeout(timer);
                     if (!cancelled) setLoading(false);
                 });
         };
@@ -348,6 +355,7 @@ export function useLbkTranslations(
             setLoading(false);
             fetchLatest(false);
         } else {
+            setData(EMPTY_RESULT);
             fetchLatest(true);
         }
 
@@ -361,5 +369,7 @@ export function useLbkTranslations(
         };
     }, [appId, enabled]);
 
+    if (!enabled || !appId) return { data: EMPTY_RESULT, loading: false };
+    if (dataAppId !== appId) return { data: lbkCache[appId] ?? EMPTY_RESULT, loading: !lbkCache[appId] };
     return { data, loading };
 }

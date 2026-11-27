@@ -14,6 +14,7 @@ A **Decky Loader** plugin for Steam Deck that displays game localization badges 
 ### ✨ Features
 
 - **🌐 29 Steam Languages + Full UI Translation**: automatically detects your Steam Deck UI language (or lets you pick any of 29 languages manually) and translates the entire plugin interface and badge statuses.
+- **⬜🟦⬜ Optional Trophy Language**: redeem a promotional code in the Info tab to check official Russian support and released community translations from [claude-rus-hub](https://github.com/e24x5-Fox/claude-rus-hub), matched by Steam AppID. Its catalog covers only some games; installation and Steam Deck compatibility are not guaranteed.
 - **🖼️ Library & Home Cover Badges**: compact corner badges on game covers using instant local Steam `bitfield_supported_languages` detection (zero API spam), compatible with Home, Library, Search, Carousel/Gallery themes, and configurable to any of the 4 corners.
 - **🎮 Game Page Badge**: clear status indicator (**Official**, **Installed**, **Community**, **None**) with customizable position, X/Y offsets, and automatic ProtonDB badge avoidance.
 - **🛒 Steam Store Overlay**: displays a localization badge on game pages and supported Store and wishlist covers in Gaming Mode. Cover badges require both Store and thumbnail badges to be enabled. They show official support, available LBK translations, and previously cached community results; uncached official results load gradually as covers become visible.
@@ -118,6 +119,7 @@ pytest -q
 ### ✨ Можливості
 
 - **🌐 29 мов Steam + повний переклад інтерфейсу**: автоматичне визначення мови Steam Deck або ручний вибір у налаштуваннях; інтерфейс плагіна та підписи статусів одразу перекладаються на вибрану мову.
+- **⬜🟦⬜ Додаткова трофейна мова**: введіть промокод у вкладці «Інфо» для перевірки офіційної російської підтримки та випущених перекладів спільноти з [claude-rus-hub](https://github.com/e24x5-Fox/claude-rus-hub) за Steam AppID. Каталог охоплює лише частину ігор; встановлення та сумісність зі Steam Deck не гарантовані.
 - **🖼️ Мініатюри у Бібліотеці та на Головній**: компактні позначки на обкладинках ігор із миттєвою локальною перевіркою через `bitfield_supported_languages` Steam (працює на Головній, у Бібліотеці, Пошуку та з темами каруселі/галереї, вибір будь-якого з 4 кутів).
 - **🎮 Бейдж на сторінці гри**: чіткий статус (**Офіційна**, **Встановлено**, **Спільнота**, **Відсутня**) із гнучкими координатами X/Y та автоматичним уникненням накладання на ProtonDB.
 - **🛒 Відображення в Steam Store**: показує бейдж локалізації на сторінках ігор і підтримуваних обкладинках магазину та списку бажаного в Gaming Mode. Для бейджів на обкладинках потрібно ввімкнути відображення і в магазині, і на мініатюрах. Вони показують офіційну підтримку, доступні переклади LBK та раніше закешовані результати спільноти; незакешовані офіційні результати завантажуються поступово для видимих обкладинок.

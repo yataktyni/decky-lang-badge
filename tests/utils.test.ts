@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetchNoCors } from "@decky/api";
 
 const navExternalWebMock = vi.fn();
 
@@ -22,6 +23,7 @@ import {
   isValidKuliGamePage,
   getKuliStatusFromHtml,
   parseKuliSearchResults,
+  searchKuli,
 } from "../src/utils";
 
 declare global {
@@ -40,6 +42,11 @@ describe("utils", () => {
   it("cleanNonSteamName removes non-steam suffixes and versions", () => {
     expect(cleanNonSteamName("Game Name (Non-Steam)")).toBe("Game Name");
     expect(cleanNonSteamName("Game v1.2.3")).toBe("Game");
+  });
+
+  it("reports an unavailable Kuli search instead of treating it as no translation", async () => {
+    vi.mocked(fetchNoCors).mockRejectedValue(new Error("offline"));
+    await expect(searchKuli("Hades")).rejects.toThrow("Kuli search failed");
   });
 
   it("isSteamAppId distinguishes steam ids", () => {

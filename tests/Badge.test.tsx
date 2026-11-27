@@ -94,6 +94,19 @@ describe("Badge component", () => {
     expect(openSpy).toHaveBeenCalledWith("https://kuli.example");
   });
 
+  it("waits for LBK before offering the Kuli link", () => {
+    lbkMock.loading = true;
+    const { rerender } = render(React.createElement(Badge, { pAppId: "730", pAppName: "CS2" }));
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(openSpy).not.toHaveBeenCalled();
+
+    lbkMock = { data: { available: true, installed_any: false, translations: [{ id: "1" }] }, loading: false };
+    rerender(React.createElement(Badge, { pAppId: "730", pAppName: "CS2" }));
+    fireEvent.click(screen.getByRole("button"));
+    expect(showModalSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
   it("does not trigger open when no url", () => {
     statusMock = { status: "NONE", url: "", loading: false };
     render(React.createElement(Badge, { pAppId: "730", pAppName: "CS2" }));

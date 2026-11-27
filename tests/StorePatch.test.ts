@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   fetchNoCors: vi.fn(),
   addPatch: vi.fn(),
   removePatch: vi.fn(),
+  russianCommunity: vi.fn(),
 }));
 
 vi.mock("@decky/api", () => ({
@@ -12,6 +13,7 @@ vi.mock("@decky/api", () => ({
   routerHook: { addPatch: mocks.addPatch, removePatch: mocks.removePatch },
 }));
 vi.mock("@decky/ui", () => ({ findModuleExport: () => undefined }));
+vi.mock("../src/russianCommunity", () => ({ getRussianCommunityUrl: mocks.russianCommunity }));
 
 import { initStorePatch } from "../src/patches/StorePatch";
 import { SettingsContext } from "../src/hooks/useSettings";
@@ -21,6 +23,69 @@ describe("Store debugger connection", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+  });
+
+  it("includes Russian when building trophy-language store tile matching", async () => {
+    vi.useFakeTimers();
+    let socket: any;
+    class FakeSocket {
+      static OPEN = 1;
+      readyState = 1;
+      onopen: ((event: any) => void) | null = null;
+      onclose = null;
+      onmessage = null;
+      send = vi.fn();
+      close = vi.fn();
+      constructor() { socket = this; }
+    }
+    vi.stubGlobal("WebSocket", FakeSocket);
+    mocks.fetchNoCors.mockResolvedValue({ json: async () => [{ url: "https://store.steampowered.com/", webSocketDebuggerUrl: "ws://store" }] });
+    let openStore: (() => void) | undefined;
+    mocks.addPatch.mockImplementation((route: string, handler: () => void) => { if (route === "/steamweb") openStore = handler; return handler; });
+    const original = SettingsContext.value;
+    SettingsContext.next({ ...original, targetLanguage: "ru", showOnStore: true, showOnThumbnails: true });
+    const cleanup = initStorePatch();
+    try {
+      openStore?.();
+      await vi.advanceTimersByTimeAsync(0);
+      socket.onopen({ target: socket });
+      await vi.advanceTimersByTimeAsync(300);
+      const messages = socket.send.mock.calls.map(([value]: [string]) => JSON.parse(value));
+      expect(messages.some((message: any) => message.params?.expression?.includes('"languages":["russian"]'))).toBe(true);
+    } finally { cleanup(); SettingsContext.next(original); }
+  });
+
+  it("shows a community badge and source link on a Russian store game page", async () => {
+    vi.useFakeTimers();
+    let socket: any;
+    class FakeSocket {
+      static OPEN = 1;
+      readyState = 1;
+      onopen: ((event: any) => void) | null = null;
+      onclose = null;
+      onmessage = null;
+      send = vi.fn();
+      close = vi.fn();
+      constructor() { socket = this; }
+    }
+    vi.stubGlobal("WebSocket", FakeSocket);
+    mocks.fetchNoCors.mockImplementation(async (url: string) => url.includes("localhost:8080")
+      ? { json: async () => [{ url: "https://store.steampowered.com/app/123/", webSocketDebuggerUrl: "ws://store" }] }
+      : { json: async () => ({ "123": { success: true, data: { name: "Game", supported_languages: "English" } } }) });
+    mocks.russianCommunity.mockResolvedValue("https://example.test/translation");
+    let openStore: (() => void) | undefined;
+    mocks.addPatch.mockImplementation((route: string, handler: () => void) => { if (route === "/steamweb") openStore = handler; return handler; });
+    const original = SettingsContext.value;
+    SettingsContext.next({ ...original, targetLanguage: "ru", showOnStore: true, showOnThumbnails: true });
+    const cleanup = initStorePatch();
+    try {
+      openStore?.();
+      await vi.advanceTimersByTimeAsync(0);
+      socket.onopen({ target: socket });
+      await vi.advanceTimersByTimeAsync(300);
+      const messages = socket.send.mock.calls.map(([value]: [string]) => JSON.parse(value));
+      expect(messages.some((message: any) => message.params?.expression?.includes("https://example.test/translation") && message.params.expression.includes("Сообщество"))).toBe(true);
+    } finally { cleanup(); SettingsContext.next(original); }
   });
 
   it("keeps the new connection when the previous socket closes late", async () => {

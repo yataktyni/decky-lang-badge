@@ -14,6 +14,7 @@ import {
     isSteamAppId,
 } from "../utils";
 import { logger } from "../logger";
+import { getRussianCommunityUrl } from "../russianCommunity";
 
 const log = logger.component("useBadgeStatus");
 
@@ -32,7 +33,8 @@ const MAX_CACHE_ENTRIES = 500;
 const statusCache: Record<string, CachedStatusEntry> = {};
 
 function makeCacheKey(appId: string, langCode: string): string {
-    return `${langCode}:${appId}`;
+    // Older Russian cache entries did not include community translations.
+    return `${langCode === "ru" ? "ru2" : langCode}:${appId}`;
 }
 
 function loadPersistedCache(): void {
@@ -42,13 +44,11 @@ function loadPersistedCache(): void {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return;
-        const now = Date.now();
         for (const [key, entry] of Object.entries(parsed as Record<string, any>)) {
             if (
                 entry &&
                 (entry.status === "OFFICIAL" || entry.status === "COMMUNITY" || entry.status === "NONE") &&
-                typeof entry.cachedAt === "number" &&
-                now - entry.cachedAt < CACHE_TTL_MS
+                typeof entry.cachedAt === "number"
             ) {
                 statusCache[key] = {
                     status: entry.status,
@@ -86,15 +86,11 @@ export function getCachedBadgeStatus(appId: string, langCode?: string): BadgeSta
     const key = makeCacheKey(appId, code);
     const entry = statusCache[key];
     if (!entry) return null;
-    if (Date.now() - entry.cachedAt >= CACHE_TTL_MS) {
-        delete statusCache[key];
-        return null;
-    }
     return entry.status;
 }
 
 export function getCachedBadgeStatuses(langCode: string): Record<string, BadgeStatus> {
-    const prefix = `${langCode}:`;
+    const prefix = `${langCode === "ru" ? "ru2" : langCode}:`;
     const result: Record<string, BadgeStatus> = {};
     for (const key of Object.keys(statusCache)) {
         if (!key.startsWith(prefix)) continue;
@@ -132,18 +128,31 @@ export function useBadgeStatus(
     const [status, setStatus] = useState<BadgeStatus | null>(null);
     const [url, setUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadedKey, setLoadedKey] = useState(() => makeCacheKey(appId || "", langCode));
 
     useEffect(() => {
         let cancelled = false;
 
         async function fetchStatus() {
+            setLoadedKey(makeCacheKey(appId || "", langCode));
             if (!appId) {
+                setStatus(null);
+                setUrl(null);
                 setLoading(false);
                 return;
             }
 
             const cacheKey = makeCacheKey(appId, langCode);
             const cachedEntry = statusCache[cacheKey];
+            if (!cachedEntry) {
+                setStatus(null);
+                setUrl(null);
+            }
+            if (cachedEntry) {
+                setStatus(cachedEntry.status);
+                setUrl(cachedEntry.url);
+                setLoading(false);
+            }
             if (cachedEntry && Date.now() - cachedEntry.cachedAt < CACHE_TTL_MS) {
                 log.info(`Using cached status for ${cacheKey}:`, cachedEntry);
                 setStatus(cachedEntry.status);
@@ -158,6 +167,7 @@ export function useBadgeStatus(
 
                 let steamStatus: BadgeStatus | null = null;
                 let storeName: string | null = null;
+                let lookupFailed = false;
 
                 if (!isSteamId) {
                     log.info(`Non-Steam game detected: ${currentAppName} (${appId})`);
@@ -179,8 +189,9 @@ export function useBadgeStatus(
                             if (isOfficialLanguageInStoreText(languages, resolvedLang)) {
                                 steamStatus = "OFFICIAL";
                             }
-                        }
+                        } else lookupFailed = true;
                     } catch (e) {
+                        lookupFailed = true;
                         log.warn(`Store metadata fetch failed for ${appId}:`, e);
                     }
                 }
@@ -200,7 +211,18 @@ export function useBadgeStatus(
                             kuliUrl = `https://kuli.com.ua/${response.slug}`;
                         }
                     } catch (e) {
+                        lookupFailed = true;
                         log.error(`Kuli resolution failed for ${searchName}:`, e);
+                    }
+                }
+
+                if (!cancelled && isSteamId && langCode === "ru") {
+                    try {
+                        kuliUrl = await getRussianCommunityUrl(appId);
+                        if (kuliUrl) kuliStatus = "COMMUNITY";
+                    } catch (e) {
+                        lookupFailed = true;
+                        log.warn(`Russian community catalog failed for ${appId}:`, e);
                     }
                 }
 
@@ -215,15 +237,18 @@ export function useBadgeStatus(
                 const finalUrl = kuliUrl;
 
                 if (!cancelled) {
-                    statusCache[cacheKey] = { status: finalStatus, url: finalUrl, cachedAt: Date.now() };
-                    persistCache();
+                    if (lookupFailed && cachedEntry) return;
+                    if (!lookupFailed) {
+                        statusCache[cacheKey] = { status: finalStatus, url: finalUrl, cachedAt: Date.now() };
+                        persistCache();
+                    }
 
                     setStatus(finalStatus);
                     setUrl(finalUrl);
                 }
             } catch (e) {
                 log.error("Status fetch failed:", e);
-                if (!cancelled) setStatus("NONE");
+                if (!cancelled && !cachedEntry) setStatus("NONE");
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -237,5 +262,6 @@ export function useBadgeStatus(
         };
     }, [appId, appName, langCode]);
 
+    if (loadedKey !== makeCacheKey(appId || "", langCode)) return { status: null, url: null, loading: true };
     return { status, url, loading };
 }

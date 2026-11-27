@@ -38,6 +38,7 @@ describe("languages registry", () => {
     const en = resolveTargetLanguage("en", "uk-UA");
     expect(en.code).toBe("en");
     expect(en.flag).toBe("🇬🇧");
+    expect(resolveTargetLanguage("ru").steamBit).toBe(8);
   });
 
   it("matches Steam Store supported_languages accurately including regional variants", () => {
@@ -60,6 +61,8 @@ describe("languages registry", () => {
       [108600, { bitfield_supported_languages: "1282277375" }], // Project Zomboid
       [1145360, { bitfield_supported_languages: "4199807" }], // Hades
       [33320, { bitfield_supported_languages: "47" }], // Prince of Persia
+      [1, { bitfield_supported_languages: "128" }], // Traditional Chinese only
+      [2, { bitfield_supported_languages: "256" }], // Russian only
     ]);
     (window as any).appStore = {
       GetAppOverviewByAppID: (id: number) => map.get(id),
@@ -74,6 +77,8 @@ describe("languages registry", () => {
     expect(hasOfficialLanguageInAppStore("1145360", resolveTargetLanguage("pl"))).toBe(true);
     expect(hasOfficialLanguageInAppStore("33320", resolveTargetLanguage("de"))).toBe(true);
     expect(hasOfficialLanguageInAppStore("33320", resolveTargetLanguage("pl"))).toBe(false);
+    expect(hasOfficialLanguageInAppStore("1", resolveTargetLanguage("ru"))).toBe(false);
+    expect(hasOfficialLanguageInAppStore("2", resolveTargetLanguage("ru"))).toBe(true);
 
     delete (window as any).appStore;
   });

@@ -1,0 +1,11 @@
+{
+  "name": "decky-promo",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-27",
+  "ratelimits": [
+    { "name": "REDEEM_RATE_LIMITER", "namespace_id": "218471", "simple": { "limit": 10, "period": 60 } }
+  ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "decky-promo", "database_id": "423aee7b-fb8f-4b73-a6a4-9e7176d46d11" }
+  ]
+}

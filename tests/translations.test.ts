@@ -25,6 +25,10 @@ const REQUIRED_UI_KEYS = [
   "restart_to_apply",
   "generic_disclaimer",
   "version",
+  "promo_code",
+  "promo_activate",
+  "promo_success",
+  "promo_failed",
 ];
 
 describe("translations", () => {
@@ -45,11 +49,17 @@ describe("translations", () => {
     expect(t("none", "pl")).toBe("Brak");
     expect(t("official", "uk")).toBe("Офіційна");
     expect(t("official", "ja")).toBe("公式");
+    expect(t("promo_code", "ja")).toBe("プロモーションコード");
+    expect(t("promo_activate", "pl")).toBe("Aktywuj");
+    expect(t("promo_code", "es-419")).toBe("Código promocional");
   });
 
   it("resolveUiLanguage follows explicit selection and auto-detects from Steam UI", () => {
     expect(resolveUiLanguage("pl", resolveTargetLanguage("pl"), "uk-UA")).toBe("pl");
     expect(resolveUiLanguage("de", resolveTargetLanguage("de"), "uk-UA")).toBe("de");
+    expect(resolveUiLanguage("ru", resolveTargetLanguage("ru"), "uk-UA")).toBe("ru");
+    expect(t("tab_general", "ru")).toBe("Общие");
+    expect(t("promo_code", "ru")).toBe("Промокод");
     expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "uk-UA"), "uk-UA")).toBe("uk");
     expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "pl-PL"), "pl-PL")).toBe("pl");
     expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "es-CO"), "es-CO")).toBe("es-419");

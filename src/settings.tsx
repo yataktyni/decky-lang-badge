@@ -9,13 +9,15 @@ import {
     DropdownItem,
     SliderField,
     ToggleField,
+    TextField,
     Navigation,
 } from "@decky/ui";
 import { t, resolveUiLanguage } from "./translations";
 import { useSettings, ThumbnailPosition } from "./hooks/useSettings";
 import { usePluginUpdate } from "./hooks/usePluginUpdate";
 import { clearBadgeStatusCache } from "./hooks/useBadgeStatus";
-import { SUPPORTED_LANGUAGES, TargetLanguageSetting, resolveTargetLanguage } from "./languages";
+import { SUPPORTED_LANGUAGES, TROPHY_LANGUAGE, TargetLanguageSetting, resolveTargetLanguage } from "./languages";
+import { isTrophyUnlocked, redeemPromo } from "./promo";
 import {
     getCachedLbkStatus,
     getLbkStatus,
@@ -45,6 +47,10 @@ export const Settings: FC = () => {
     const topRef = useRef<HTMLDivElement | null>(null);
     const timeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
     const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+    const [trophyUnlocked, setTrophyUnlocked] = useState(isTrophyUnlocked);
+    const [promoCode, setPromoCode] = useState("");
+    const [promoMessage, setPromoMessage] = useState("");
+    const [promoLoading, setPromoLoading] = useState(false);
     const [offsets, setOffsets] = useState({ x: 10, y: 10, sx: 0, sy: 0 });
     const [lbkStatus, setLbkStatus] = useState<LbkStatus | null>(() => getCachedLbkStatus());
     const [installingLbk, setInstallingLbk] = useState(false);
@@ -138,7 +144,7 @@ export const Settings: FC = () => {
 
     const languageOptions: { data: number; label: string; value: TargetLanguageSetting }[] = [
         { data: 0, label: t("target_language_auto", lang), value: "auto" },
-        ...SUPPORTED_LANGUAGES.map((l, idx) => ({
+        ...[...SUPPORTED_LANGUAGES, ...(trophyUnlocked ? [TROPHY_LANGUAGE] : [])].map((l, idx) => ({
             data: idx + 1,
             label: `${l.flag} ${l.nativeName}`,
             value: l.code as TargetLanguageSetting,
@@ -454,7 +460,22 @@ export const Settings: FC = () => {
 
             {/* Tab 3: Info, Guides, Credits & Version */}
             {activeTab === "info" && (
-                <LinksSection lang={lang} openUrl={openUrl} targetLang={resolvedTargetLang} />
+                <>
+                    {!trophyUnlocked && <PanelSection title={t("promo_code", lang)}>
+                        <PanelSectionRow><TextField label={t("promo_code", lang)} value={promoCode} onChange={(event) => setPromoCode(event.target.value)} /></PanelSectionRow>
+                        <PanelSectionRow><ButtonItem disabled={promoLoading || !promoCode.trim()} onClick={async () => {
+                            setPromoLoading(true);
+                            try {
+                                const success = await redeemPromo(promoCode);
+                                setPromoMessage(t(success ? "promo_success" : "promo_failed", lang));
+                                if (success) { setTrophyUnlocked(true); setPromoCode(""); }
+                            } catch { setPromoMessage(t("promo_failed", lang)); }
+                            finally { setPromoLoading(false); }
+                        }}>{t("promo_activate", lang)}</ButtonItem></PanelSectionRow>
+                        {promoMessage && <PanelSectionRow><span role="status">{promoMessage}</span></PanelSectionRow>}
+                    </PanelSection>}
+                    <LinksSection lang={lang} openUrl={openUrl} targetLang={resolvedTargetLang} />
+                </>
             )}
 
             {/* Support / Donate card is always visible on every tab */}

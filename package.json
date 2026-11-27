@@ -1,6 +1,6 @@
 {
   "name": "decky-lang-badge",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "Displays localization badges for 29 Steam languages on Steam Deck (with Kuli.com.ua & LBK Launcher integration for Ukrainian).",
   "type": "module",
   "author": "Yataktyni",
@@ -27,7 +27,7 @@
     "build:admin": "ADMIN_BUILD=1 shx rm -rf dist && ADMIN_BUILD=1 rollup -c",
     "watch": "rollup -c -w",
     "release": "bash ./scripts/release.sh",
-    "zip": "zip -r release.zip . -x 'node_modules/*' '.git/*' '.agent/*' '.agents/*' '.kilocode/*' '.venv/*' 'venv/*' '__pycache__/*' 'src/*' 'tests/*' 'scripts/*' '*.code-workspace' 'tsconfig.json' 'rollup.config.js' 'vitest.config.ts' 'pytest.ini' 'requirements-dev.txt' 'decky.pyi' 'pnpm-lock.yaml'",
+    "zip": "zip -r release.zip . -x 'node_modules/*' '.git/*' '.agent/*' '.agents/*' '.kilocode/*' 'promotion-worker/*' '.venv/*' 'venv/*' '__pycache__/*' 'src/*' 'tests/*' 'scripts/*' '*.code-workspace' 'tsconfig.json' 'rollup.config.js' 'vitest.config.ts' 'pytest.ini' 'requirements-dev.txt' 'decky.pyi' 'pnpm-lock.yaml'",
     "test:frontend": "vitest run --environment jsdom",
     "test": "pnpm test:frontend"
   },

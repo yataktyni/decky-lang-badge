@@ -3,6 +3,7 @@
 
 export type TargetLanguageCode =
     | "uk"
+    | "ru"
     | "pl"
     | "cs"
     | "tr"
@@ -371,6 +372,21 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
 const LANGUAGE_MAP: Record<string, LanguageConfig> = Object.fromEntries(
     SUPPORTED_LANGUAGES.map((l) => [l.code, l])
 );
+
+export const TROPHY_LANGUAGE: LanguageConfig = {
+    code: "ru",
+    steamBit: 8,
+    flag: "⬜🟦⬜",
+    nativeName: "Трофейный",
+    englishName: "Trophy (Russian)",
+    communityLinks: [
+        { label: "Rusify", url: "https://rusifikatory.online/", kind: "portal" },
+        { label: "Локалыч", url: "https://lokalych.ru/", kind: "portal" },
+    ],
+    storeMatch: includesToken("russian"),
+    badgeLabels: { official: "Официальный", none: "Отсутствует" },
+};
+LANGUAGE_MAP.ru = TROPHY_LANGUAGE;
 
 const LATAM_REGIONS = new Set([
     "419", "mx", "ar", "co", "cl", "pe", "ve", "ec", "gt", "cu", "bo", "do",

@@ -40,14 +40,14 @@ const Badge: React.FC<BadgeProps> = ({ pAppId, pAppName }) => {
     const targetLang = resolveTargetLanguage(settings.targetLanguage);
     const { status, url: kuliUrl, loading: statusLoading } = useBadgeStatus(appId, appName, targetLang);
     const lbkEnabled = Boolean(targetLang.hasUkrainianCommunity && settings.enableLbkIntegration !== false);
-    const { data: lbkData } = useLbkTranslations(appId, lbkEnabled);
+    const { data: lbkData, loading: lbkLoading } = useLbkTranslations(appId, lbkEnabled);
     const { badgeType } = settings;
     const lang = resolveUiLanguage(settings.targetLanguage, targetLang);
 
     const [isFocused, setIsFocused] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
-    if (hLoading || statusLoading || settingsLoading || !status) return null;
+    if (hLoading || statusLoading || settingsLoading || (lbkEnabled && lbkLoading) || !status) return null;
 
     const hasLbkTranslations = lbkEnabled && lbkData.translations.length > 0;
     const isLbkInstalled = hasLbkTranslations && lbkData.installed_any;
