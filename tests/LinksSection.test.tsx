@@ -77,9 +77,10 @@ describe("LinksSection version-only view", () => {
     callMock.mockResolvedValue("1.0.0");
     render(React.createElement(LinksSection, { lang: "en", openUrl, targetLang: resolveTargetLanguage("tr") }));
 
-    fireEvent.click(screen.getByText("Translation guide (English)"));
+    fireEvent.click(screen.getByText("translation_guide_en"));
     expect(openUrl).toHaveBeenCalledWith("https://github.com/yataktyni/decky-lang-badge#installing-community-translations-on-steam-deck");
     expect(screen.getByText("Sirius Çeviri")).toBeTruthy();
+    expect(screen.getByText("Oyun Çeviri")).toBeTruthy();
     expect(screen.getByText("Steam Deck Türkçe Yama Rehberi")).toBeTruthy();
     expect(screen.queryByText("Tribo Gamer")).toBeNull();
   });

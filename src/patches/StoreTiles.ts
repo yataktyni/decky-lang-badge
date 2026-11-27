@@ -117,6 +117,8 @@ export function installStoreTiles(config: TileConfig): void {
             try { url = new URL(tile.href, location.href); } catch { return; }
             const appId = url.hostname === "store.steampowered.com" ? url.pathname.match(/^\/app\/(\d+)(?:\/|$)/)?.[1] : undefined;
             if (!appId) return;
+            const rect = tile.getBoundingClientRect();
+            if ((rect.width > 0 && rect.width < 90) || (rect.height > 0 && rect.height < 35)) return;
             if (getComputedStyle(tile).position === "static") {
                 tile.dataset.localizationOriginalPosition = tile.style.position;
                 tile.style.position = "relative";

@@ -15,6 +15,7 @@ const REQUIRED_UI_KEYS = [
   "none",
   "support_title",
   "support_subtitle",
+  "translation_guide_en",
   "version",
 ];
 

@@ -93,6 +93,7 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         englishName: "Czech",
         communityLinks: [
             { label: "Lokalizace.net", url: "https://lokalizace.net/", kind: "portal" },
+            { label: "PřekladyHer.eu", url: "https://prekladyher.eu/", kind: "portal" },
             { label: "Herní Překlady", url: "https://hernipreklady.cz/", kind: "portal" },
         ],
         storeMatch: includesToken("czech"),
@@ -106,6 +107,7 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         englishName: "Turkish",
         communityLinks: [
             { label: "Sirius Çeviri", url: "https://siriusceviri.com/", kind: "portal" },
+            { label: "Oyun Çeviri", url: "https://www.oyunceviri.net/", kind: "portal" },
             { label: "Steam Deck Türkçe Yama Rehberi", url: "https://www.youtube.com/watch?v=lgaaOG7Avw8", kind: "video" },
         ],
         storeMatch: includesToken("turkish"),
@@ -119,6 +121,7 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         englishName: "Portuguese (Brazil)",
         communityLinks: [
             { label: "Tribo Gamer", url: "https://tribogamer.com/", kind: "portal" },
+            { label: "Central de Traduções", url: "https://www.centraldetraducoes.net.br/", kind: "portal" },
             { label: "Traduções e mods no Steam Deck", url: "https://www.youtube.com/watch?v=Gcs0ZD4eaWU", kind: "video" },
         ],
         storeMatch: includesToken("portuguese - brazil"),
@@ -165,6 +168,9 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🇩🇪",
         nativeName: "Deutsch",
         englishName: "German",
+        communityLinks: [
+            { label: "schote.biz", url: "https://www.schote.biz/", kind: "portal" },
+        ],
         storeMatch: includesToken("german"),
         badgeLabels: { official: "Offiziell", none: "Keine" },
     },
@@ -174,6 +180,9 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🇫🇷",
         nativeName: "Français",
         englishName: "French",
+        communityLinks: [
+            { label: "TraductionJeux.com", url: "https://traductionjeux.com/", kind: "portal" },
+        ],
         storeMatch: includesToken("french"),
         badgeLabels: { official: "Officielle", none: "Aucune" },
     },
@@ -183,6 +192,9 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🇮🇹",
         nativeName: "Italiano",
         englishName: "Italian",
+        communityLinks: [
+            { label: "RPG Italia", url: "https://www.rpgitalia.net/", kind: "portal" },
+        ],
         storeMatch: includesToken("italian"),
         badgeLabels: { official: "Ufficiale", none: "Nessuna" },
     },
@@ -330,6 +342,9 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🇻🇳",
         nativeName: "Tiếng Việt",
         englishName: "Vietnamese",
+        communityLinks: [
+            { label: "Việt Hóa Game", url: "https://viethoagame.com/", kind: "portal" },
+        ],
         storeMatch: includesToken("vietnamese"),
         badgeLabels: { official: "Chính thức", none: "Không" },
     },
