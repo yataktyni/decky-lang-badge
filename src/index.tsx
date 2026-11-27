@@ -6,7 +6,6 @@ import {
     appDetailsClasses,
     appDetailsHeaderClasses,
     createReactTreePatcher,
-    staticClasses,
 } from "@decky/ui";
 import { FaFlag } from "react-icons/fa";
 
@@ -192,67 +191,31 @@ function patchLibraryApp() {
 }
 
 /**
- * Plugin icon in Decky QAM plugin list with a yellow dot indicator when an update is available
+ * Plugin icon in Decky QAM plugin list.
+ * Uses a Fragment so the yellow dot positions at the top-right corner of Decky's
+ * plugin list button (matching native Decky update dots like TabMaster).
  */
 const PluginIconWithUpdateDot: React.FC = () => {
     const { updateAvailable } = usePluginUpdate(false);
     return (
-        <span
-            style={{
-                position: "relative",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-            }}
-        >
+        <>
             <FaFlag />
             {updateAvailable && (
-                <span
+                <div
                     data-testid="decky-plugin-icon-update-dot"
                     style={{
                         position: "absolute",
-                        top: "-3px",
-                        right: "-4px",
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
+                        top: "-5px",
+                        right: "-5px",
+                        height: "10px",
+                        width: "10px",
                         background: "#facc15",
-                        border: "1.5px solid #1b2838",
-                        boxShadow: "0 0 6px rgba(250, 204, 21, 0.9)",
+                        borderRadius: "50%",
                         pointerEvents: "none",
                     }}
                 />
             )}
-        </span>
-    );
-};
-
-/**
- * Plugin header title in Decky QAM with a yellow dot indicator when an update is available
- */
-const PluginTitleView: React.FC = () => {
-    const { updateAvailable } = usePluginUpdate(false);
-    return (
-        <div
-            className={staticClasses.Title}
-            style={{ display: "flex", alignItems: "center", gap: "8px" }}
-        >
-            <span>Decky Localization Badge</span>
-            {updateAvailable && (
-                <span
-                    data-testid="decky-plugin-title-update-dot"
-                    style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        background: "#facc15",
-                        boxShadow: "0 0 6px rgba(250, 204, 21, 0.9)",
-                        display: "inline-block",
-                        flexShrink: 0,
-                    }}
-                />
-            )}
-        </div>
+        </>
     );
 };
 
@@ -271,7 +234,7 @@ export default definePlugin(() => {
     // Load settings on plugin init
     loadSettings();
 
-    // Check for newer plugin release in background so Decky list/title dot appears immediately
+    // Check for newer plugin release in background so Decky list/tab dot appears immediately
     void refreshPluginVersionInfo(false);
 
     // Patch the library app page
@@ -286,7 +249,6 @@ export default definePlugin(() => {
     return {
         name: "Decky Localization Badge",
         title: "Decky Localization Badge",
-        titleView: <PluginTitleView />,
         icon: <PluginIconWithUpdateDot />,
         content: <SettingsPanel />,
         onDismount() {

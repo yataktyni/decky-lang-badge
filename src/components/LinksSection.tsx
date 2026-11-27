@@ -94,6 +94,25 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
                 }
             }
 
+            // Prefer Decky Loader's own privileged installer (runs as root, avoids Errno 13 Permission denied on root-owned plugin dirs)
+            const deckyBackend = (window as any)?.DeckyBackend;
+            if (typeof deckyBackend?.call === "function") {
+                const targetVersion = latestInfo.latest || latestInfo.latest_tag || "latest";
+                const releaseUrl = latestInfo.latest_tag
+                    ? `https://github.com/yataktyni/decky-lang-badge/releases/download/${encodeURIComponent(latestInfo.latest_tag)}/release.zip`
+                    : "https://github.com/yataktyni/decky-lang-badge/releases/latest/download/release.zip";
+                // PluginInstallType.UPDATE === 2 in Decky Loader
+                await deckyBackend.call(
+                    "utilities/install_plugin",
+                    releaseUrl,
+                    "Decky Localization Badge",
+                    targetVersion,
+                    "",
+                    2
+                );
+                return;
+            }
+
             const result = await call<[], UpdateResult>("update_plugin");
             if (result?.success) {
                 if (result.already_current) {

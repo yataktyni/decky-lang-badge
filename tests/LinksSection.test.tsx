@@ -40,6 +40,39 @@ describe("LinksSection info & auto-updater", () => {
     callMock.mockReset();
     openUrl.mockReset();
     setPluginVersionInfo(null);
+    delete (window as any).DeckyBackend;
+  });
+
+  it("uses DeckyBackend utilities/install_plugin when available on Steam Deck", async () => {
+    const deckyCall = vi.fn().mockResolvedValue(undefined);
+    (window as any).DeckyBackend = { call: deckyCall };
+
+    callMock
+      .mockResolvedValueOnce("2.0.9")
+      .mockResolvedValueOnce({
+        current: "2.0.9",
+        latest: "2.1.2",
+        latest_tag: "v2.1.2",
+        update_available: true,
+        source_ok: true,
+      });
+
+    render(React.createElement(LinksSection, { lang: "en", openUrl }));
+
+    const updateBtn = await screen.findByText(/update_to v2\.1\.2/i);
+    fireEvent.click(updateBtn);
+
+    await waitFor(() => {
+      expect(deckyCall).toHaveBeenCalledWith(
+        "utilities/install_plugin",
+        "https://github.com/yataktyni/decky-lang-badge/releases/download/v2.1.2/release.zip",
+        "Decky Localization Badge",
+        "2.1.2",
+        "",
+        2
+      );
+    });
+    expect(callMock).not.toHaveBeenCalledWith("update_plugin");
   });
 
   it("shows update button with latest version and installs on click", async () => {
