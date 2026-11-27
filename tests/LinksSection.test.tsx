@@ -32,7 +32,7 @@ vi.mock("../src/translations", () => ({
 import { LinksSection } from "../src/components/LinksSection";
 import { resolveTargetLanguage } from "../src/languages";
 
-describe("LinksSection version-only view", () => {
+describe("LinksSection info & auto-updater", () => {
   const openUrl = vi.fn();
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe("LinksSection version-only view", () => {
     openUrl.mockReset();
   });
 
-  it("shows only current version and hides update/diagnostics actions", async () => {
+  it("shows update button with latest version and installs on click", async () => {
     callMock
       .mockResolvedValueOnce("1.0.0")
       .mockResolvedValueOnce({
@@ -48,17 +48,83 @@ describe("LinksSection version-only view", () => {
         latest: "1.1.0",
         latest_tag: "v1.1.0",
         update_available: true,
+        source_ok: true,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        needs_restart: true,
+        version: "1.1.0",
+      });
+
+    render(React.createElement(LinksSection, { lang: "en", openUrl }));
+
+    const updateBtn = await screen.findByText(/update_to v1\.1\.0/i);
+    expect(screen.getByText(/Version: v1\.0\.0/i)).toBeTruthy();
+
+    fireEvent.click(updateBtn);
+
+    await waitFor(() => {
+      expect(callMock).toHaveBeenCalledWith("update_plugin");
+      expect(screen.getByText(/update_success restart_to_apply/i)).toBeTruthy();
+      expect(screen.getByText(/Version: v1\.1\.0/i)).toBeTruthy();
+    });
+  });
+
+  it("re-checks GitHub and reports already up to date when no newer release exists", async () => {
+    callMock
+      .mockResolvedValueOnce("2.1.1")
+      .mockResolvedValueOnce({
+        current: "2.1.1",
+        latest: "2.1.0",
+        latest_tag: "v2.1.0",
+        update_available: false,
+        source_ok: true,
+      })
+      .mockResolvedValueOnce({
+        current: "2.1.1",
+        latest: "2.1.0",
+        latest_tag: "v2.1.0",
+        update_available: false,
+        source_ok: true,
       });
 
     render(React.createElement(LinksSection, { lang: "en", openUrl }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Version: v1.0.0/i)).toBeTruthy();
+      expect(screen.getByText(/Version: v2\.1\.1/i)).toBeTruthy();
     });
 
-    expect(screen.queryByText(/^update_plugin$/i)).toBeNull();
-    expect(screen.queryByText(/Run Version Diagnostics/i)).toBeNull();
-    expect(screen.queryByText(/Force Update/i)).toBeNull();
+    fireEvent.click(screen.getByText("update_plugin"));
+
+    await waitFor(() => {
+      expect(screen.getByText("already_up_to_date")).toBeTruthy();
+    });
+    expect(callMock).not.toHaveBeenCalledWith("update_plugin");
+  });
+
+  it("surfaces error when update_plugin fails", async () => {
+    callMock
+      .mockResolvedValueOnce("1.0.0")
+      .mockResolvedValueOnce({
+        current: "1.0.0",
+        latest: "1.2.0",
+        latest_tag: "v1.2.0",
+        update_available: true,
+        source_ok: true,
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        error: "Download failed",
+      });
+
+    render(React.createElement(LinksSection, { lang: "en", openUrl }));
+
+    const updateBtn = await screen.findByText(/update_to v1\.2\.0/i);
+    fireEvent.click(updateBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/update_error: Download failed/i)).toBeTruthy();
+    });
   });
 
   it("still renders version when get_latest_version fails", async () => {
@@ -69,13 +135,24 @@ describe("LinksSection version-only view", () => {
     render(React.createElement(LinksSection, { lang: "en", openUrl }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Version: v1.0.0/i)).toBeTruthy();
+      expect(screen.getByText(/Version: v1\.0\.0/i)).toBeTruthy();
     });
   });
 
-  it("shows the English guide and only the selected language's resources", () => {
-    callMock.mockResolvedValue("1.0.0");
+  it("shows the localized guide key and only the selected language's resources", async () => {
+    callMock
+      .mockResolvedValueOnce("1.0.0")
+      .mockResolvedValueOnce({
+        current: "1.0.0",
+        latest: "1.0.0",
+        update_available: false,
+        source_ok: true,
+      });
     render(React.createElement(LinksSection, { lang: "en", openUrl, targetLang: resolveTargetLanguage("tr") }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Version: v1\.0\.0/i)).toBeTruthy();
+    });
 
     fireEvent.click(screen.getByText("translation_guide_en"));
     expect(openUrl).toHaveBeenCalledWith("https://github.com/yataktyni/decky-lang-badge#installing-community-translations-on-steam-deck");

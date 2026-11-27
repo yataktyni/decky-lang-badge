@@ -16,6 +16,14 @@ const REQUIRED_UI_KEYS = [
   "support_title",
   "support_subtitle",
   "translation_guide_en",
+  "update_plugin",
+  "updating",
+  "update_success",
+  "update_error",
+  "update_to",
+  "already_up_to_date",
+  "restart_to_apply",
+  "generic_disclaimer",
   "version",
 ];
 
@@ -27,7 +35,10 @@ describe("translations", () => {
         expect(value, `Missing key "${key}" for "${lang.code}"`).toBeTruthy();
         expect(value).not.toBe(key);
       }
+      expect(t("generic_disclaimer", lang.code)).toContain("Yataktyni");
     }
+    expect(t("credits_disclaimer", "uk")).toContain("Yataktyni");
+    expect(t("credits_disclaimer", "en")).toContain("Yataktyni");
 
     expect(t("official", "pl")).toBe("Oficjalna");
     expect(t("community", "pl")).toBe("Społeczność");

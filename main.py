@@ -320,7 +320,9 @@ class Plugin:
                         and all('/' in p for p in paths)
                     )
 
-                    count = 0
+                    # First pass: validate all entries before writing anything (prevents partial writes)
+                    validated_entries: List[Tuple[zipfile.ZipInfo, str]] = []
+                    base_norm = os.path.normpath(target_dir)
                     for info in zf.infolist():
                         if info.is_dir():
                             continue
@@ -351,11 +353,15 @@ class Plugin:
                         ):
                             raise ValueError(f"Unsafe zip entry path: {info.filename}")
 
-                        base_norm = os.path.normpath(target_dir)
                         target_path = os.path.normpath(os.path.join(base_norm, norm_rel))
                         if os.path.commonpath([base_norm, target_path]) != base_norm:
                             raise ValueError(f"Unsafe zip entry path: {info.filename}")
 
+                        validated_entries.append((info, target_path))
+
+                    # Second pass: extract validated entries
+                    count = 0
+                    for info, target_path in validated_entries:
                         os.makedirs(os.path.dirname(target_path), exist_ok=True)
                         with zf.open(info) as src, open(target_path, 'wb') as dst:
                             dst.write(src.read())
@@ -364,9 +370,15 @@ class Plugin:
 
             decky.logger.info("[UPDATE] Extracting...")
             file_count = await asyncio.to_thread(extract_zip, zip_data, plugin_dir)
+            installed_version = await self.get_current_version()
 
-            decky.logger.info(f"[UPDATE] Complete! Extracted {file_count} files")
-            return {"success": True, "message": "Update complete. Restart Decky.", "needs_restart": True}
+            decky.logger.info(f"[UPDATE] Complete! Extracted {file_count} files (version={installed_version})")
+            return {
+                "success": True,
+                "message": "Update complete. Restart Decky.",
+                "needs_restart": True,
+                "version": installed_version,
+            }
 
         except zipfile.BadZipFile:
             return {"success": False, "error": "Invalid zip file"}

@@ -206,6 +206,7 @@ async def test_update_plugin_extracts_release_zip(tmp_path, monkeypatch, with_ro
     result = await plugin.update_plugin()
     assert result["success"] is True
     assert result.get("needs_restart") is True
+    assert result.get("version") == "9.9.9"
 
     new_ver = json.loads((tmp_path / "plugin.json").read_text(encoding="utf-8"))["version"]
     assert new_ver == "9.9.9"
@@ -238,6 +239,7 @@ async def test_update_plugin_blocks_zip_slip(tmp_path, monkeypatch):
 
     bio = io.BytesIO()
     with zipfile.ZipFile(bio, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("safe.txt", "should-not-write-before-validation")
         z.writestr("../escaped.txt", "pwned")
 
     async def fake_latest():
@@ -254,6 +256,7 @@ async def test_update_plugin_blocks_zip_slip(tmp_path, monkeypatch):
     assert result["success"] is False
     assert "Unsafe zip entry path" in result["error"]
     assert not (tmp_path.parent / "escaped.txt").exists()
+    assert not (tmp_path / "safe.txt").exists()
 
 
 def test_settings_load_save_merge_defaults(tmp_path, monkeypatch):

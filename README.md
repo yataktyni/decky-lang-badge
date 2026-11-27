@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/yataktyni/decky-lang-badge/main/ins
 
 - **⚙️ General**: Localization language (`Auto` or manual choice of 29 languages), Badge Type (`Icon + Text` / `Icon Only`), Library thumbnails toggle, Steam Store overlay toggle, and *(when 🇺🇦 Ukrainian is active)* LBK Launcher integration, 1-click install/launch, and catalog/cache refresh.
 - **📍 Layout**: Game page badge corner & X/Y offsets, Thumbnail badge corner (4 corners), and Store badge X/Y offsets.
-- **🔗 Info**: Language-specific translation portals & guides, GitHub source, contact link, credits, and auto-synced release version.
+- **🔗 Info**: Language-specific translation portals & guides, GitHub source, contact link, 1-click plugin updater (downloads and installs the latest GitHub release), author credits, and version info.
 
 ### Installing community translations on Steam Deck
 
@@ -161,7 +161,7 @@ curl -fsSL https://raw.githubusercontent.com/yataktyni/decky-lang-badge/main/ins
 
 - **⚙️ Загальні**: мова локалізації, тип бейджа, відображення на мініатюрах і в магазині Steam. Для української також доступні інтеграція з LBK Launcher, його встановлення та запуск і оновлення каталогу й кешу.
 - **📍 Позиція**: розташування й відступи бейджа на сторінці гри та в магазині, кут бейджа на мініатюрах.
-- **🔗 Інфо**: ресурси перекладацьких спільнот і посібники для вибраної мови, GitHub, контакт автора, подяки та версія плагіна.
+- **🔗 Інфо**: ресурси перекладацьких спільнот і посібники для вибраної мови, GitHub, контакт автора, оновлення плагіна в один клік (завантажує й розгортає останній реліз із GitHub), інформація про автора та версія плагіна.
 
 ### Встановлення перекладів спільноти на Steam Deck
 
