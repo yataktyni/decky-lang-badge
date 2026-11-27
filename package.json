@@ -1,6 +1,6 @@
 {
   "name": "decky-lang-badge",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Displays localization badges for 29 Steam languages on Steam Deck (with Kuli.com.ua & LBK Launcher integration for Ukrainian).",
   "type": "module",
   "author": "Yataktyni",
@@ -34,27 +34,30 @@
   "devDependencies": {
     "@decky/rollup": "^1.0.2",
     "@decky/ui": "^5.0.2",
-    "@rollup/plugin-commonjs": "^28.0.3",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.0.1",
+    "@rollup/plugin-commonjs": "^28.0.9",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
-    "@types/webpack": "^5.28.5",
-    "jsdom": "^25.0.1",
+    "jsdom": "^26.1.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "rollup": "^4.22.5",
-    "shx": "^0.3.4",
-    "typescript": "^5.6.2",
-    "vitest": "^2.1.4"
+    "rollup": "^4.68.8",
+    "shx": "^0.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4",
+    "vitest": "^4.1.12"
   },
   "dependencies": {
     "@decky/api": "^1.1.3",
-    "react-icons": "^5.3.0",
-    "rxjs": "^7.8.1",
-    "tslib": "^2.7.0"
+    "react-icons": "^5.7.0",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.9.1"
   },
   "pnpm": {
+    "overrides": {
+      "@decky/rollup>@rollup/plugin-commonjs": "^28.0.9"
+    },
     "peerDependencyRules": {
       "ignoreMissing": [
         "react",

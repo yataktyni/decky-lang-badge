@@ -119,6 +119,10 @@ export const LinksSection: FC<LinksSectionProps> = ({ lang, openUrl, targetLang 
                 ))
             )}
 
+            {!isUkrainian && (
+                <LinkButton onClick={() => openUrl("https://github.com/yataktyni/decky-lang-badge#installing-community-translations-on-steam-deck")} icon={<FaGithub />} label="Translation guide (English)" />
+            )}
+
             {/* Universal Plugin Links */}
             <LinkButton onClick={() => openUrl("https://github.com/yataktyni/decky-lang-badge")} icon={<FaGithub />} label={t("github_source", lang)} />
             <LinkButton onClick={() => openUrl("https://x.com/yataktyni")} icon={<FaXTwitter />} label={t("author_x", lang)} />

@@ -18,7 +18,7 @@ A **Decky Loader** plugin for Steam Deck that displays game localization badges 
 - **🎮 Game Page Badge** — clear status indicator (**Official**, **Installed**, **Community**, **None**) with customizable position, X/Y offsets, and automatic ProtonDB badge avoidance.
 - **🛒 Steam Store Overlay** — automatically injects the localization badge on Steam Store pages inside Gaming Mode.
 - **🧩 Deep Ukrainian Community Integration (for 🇺🇦)** — detects local [LBK Launcher](https://lbklauncher.com/) database (`lbk.db`) & installed translations, shows `✓` (installed), `⬆` (translation update available), and `🎙` (voiceover available), opens an in-Steam modal with team/version/progress details, launches LBK Launcher visibly inside Gaming Mode, and supports 1-click Flatpak installation right from settings; falls back to [Kuli.com.ua](https://kuli.com.ua/).
-- **🌍 Community Portals** — quick links in the Info tab for regional community translation hubs (**Kuli.com.ua** & **LBK Launcher** for Ukrainian, **Graj Po Polsku** for Polish, **Lokalizace.net** & **Herní Překlady** for Czech, **Tribo Gamer** for Brazilian Portuguese, and **Magyarítások Portál** for Hungarian).
+- **🌍 Community Portals**: quick links in the Info tab for selected translation communities and guides for the chosen language.
 - **🧭 Compact 3-Tab Settings UI** — organized into **General**, **Layout**, and **Info** tabs so you never have to scroll through long lists in the Quick Access Menu.
 
 ### 🌐 Supported Languages (29)
@@ -63,9 +63,21 @@ curl -fsSL https://raw.githubusercontent.com/yataktyni/decky-lang-badge/main/ins
 - **📍 Layout**: Game page badge corner & X/Y offsets, Thumbnail badge corner (4 corners), and Store badge X/Y offsets.
 - **🔗 Info**: Language-specific translation portals & guides, GitHub source, contact link, credits, and auto-synced release version.
 
+### Installing community translations on Steam Deck
+
+Community patches are made by independent authors, and installation differs by game. Check the patch's instructions and compatibility with your game version first. Back up saved games and files that the patch asks you to replace.
+
+1. Switch to Desktop Mode, open the translation author's page, and download the patch for your game and language.
+2. In Steam, open the game's properties and use **Installed Files > Browse** to find its files. Follow the patch author's instructions for copying files or running an installer. Some Windows installers need a compatible Proton environment; their instructions may be game-specific.
+3. Start the game and check its language settings. Keep a copy of the original files so you can undo the patch if needed.
+
+The plugin links to community resources but does not verify every patch or automatically install translations outside its Ukrainian LBK integration. Some patches or installers may not work on Steam Deck.
+
+Community resources include [Kuli](https://kuli.com.ua/) and [LBK Launcher](https://lbklauncher.com/) (Ukrainian), [Graj Po Polsku](https://grajpopolsku.pl/) (Polish), [Lokalizace.net](https://lokalizace.net/) and [Herní Překlady](https://hernipreklady.cz/) (Czech), [Sirius Çeviri](https://siriusceviri.com/) (Turkish), [TraduSquare](https://tradusquare.es/) (Spanish), [Tribo Gamer](https://tribogamer.com/) (Brazilian Portuguese), and [Magyarítások Portál](https://magyaritasok.hu/) (Hungarian). See the [Turkish Steam Deck video guide](https://www.youtube.com/watch?v=lgaaOG7Avw8) and [Brazilian Portuguese video guide](https://www.youtube.com/watch?v=Gcs0ZD4eaWU) for examples.
+
 ### 🛠️ Building & Testing from Source
 
-**Requirements:** Node.js 18+, pnpm (or npm), Python 3.11+ (for backend tests).
+**Requirements:** Node.js 20+, pnpm, Python 3.11+ (for backend tests).
 
 ```bash
 git clone https://github.com/yataktyni/decky-lang-badge.git
@@ -81,7 +93,9 @@ python3 -m pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Automated CI/CD (`.github/workflows/ci.yml` & `.github/workflows/release.yml`) runs all **52 automated tests** (38 frontend Vitest + 14 backend Pytest) on every push and before publishing tagged releases.
+Automated CI/CD (`.github/workflows/ci.yml` and `.github/workflows/release.yml`) runs frontend and backend tests on every push and before publishing tagged releases.
+
+To release, commit and push all changes to `main` first. Run `pnpm release patch` (or `minor` / `major`) to update both manifest versions, commit them, and push the new tag. To release the version already committed in both manifests, run `pnpm release` without a bump argument. The workflow validates the tag against both manifests before building. Check GitHub Actions and the uploaded `release.zip` to confirm publication.
 
 ### 🔗 Support & Links
 
@@ -94,7 +108,7 @@ Automated CI/CD (`.github/workflows/ci.yml` & `.github/workflows/release.yml`) r
 ### ⚖️ Credits & Disclaimer
 
 - **[LBK Launcher](https://lbklauncher.com/)** is created by [Vadko](https://github.com/Vadko/lbk-launcher) and the Ukrainian localization community under **GNU GPL v3.0**. `Decky Localization Badge` (`decky-lang-badge`) is an independent, unofficial plugin and is not affiliated with or endorsed by LBK Launcher. It does not bundle, modify, or redistribute any LBK Launcher code or binaries — it only reads the user's local database, opens official `lbk://` deep links, or invokes Flatpak with the official `com.lbk.launcher` flatpakref.
-- **[Kuli.com.ua](https://kuli.com.ua/)**, **Graj Po Polsku**, **Lokalizace.net**, **Herní Překlady**, **Tribo Gamer**, and **Magyarítások Portál** are independent community localization portals.
+- **[Kuli.com.ua](https://kuli.com.ua/)**, **Graj Po Polsku**, **Lokalizace.net**, **Herní Překlady**, **Sirius Çeviri**, **Tribo Gamer**, and **Magyarítások Portál** are independent community localization portals.
 - All translations, catalogs, and trademarks (including Steam, Steam Deck, Valve, and Decky Loader) belong to their respective authors and owners.
 
 ---
@@ -112,7 +126,7 @@ Automated CI/CD (`.github/workflows/ci.yml` & `.github/workflows/release.yml`) r
 - **🎮 Бейдж на сторінці гри** — чіткий статус (**Офіційна**, **Встановлено**, **Спільнота**, **Відсутня**) із гнучкими координатами X/Y та автоматичним уникненням накладання на ProtonDB.
 - **🛒 Відображення в Steam Store** — автоматично показує бейдж локалізації на сторінках магазину в Gaming Mode.
 - **🧩 Інтеграція з LBK Launcher та Kuli.com.ua (для 🇺🇦)** — читає локальну базу `lbk.db` і встановлені українізатори, показує `✓` (встановлено), `⬆` (є оновлення перекладу) та `🎙` (є українська озвучка), відкриває модальне вікно з командами/прогресом, запускає LBK Launcher прямо в Gaming Mode та вміє встановлювати LBK Launcher (Flatpak) в один клік із налаштувань плагіна.
-- **🌍 Портали спільнот** — швидкі посилання у вкладці «Інфо» для відповідної мови (`Kuli.com.ua`, `LBK Launcher`, `Graj Po Polsku`, `Lokalizace.net`, `Herní Překlady`, `Tribo Gamer`, `Magyarítások Portál`).
+- **🌍 Портали спільнот**: швидкі посилання у вкладці «Інфо» для відповідної мови, зокрема `Kuli.com.ua`, `LBK Launcher`, `Graj Po Polsku`, `Lokalizace.net`, `Herní Překlady`, `Sirius Çeviri`, `Tribo Gamer` і `Magyarítások Portál`.
 - **🧭 Компактні налаштування у 3 табах** — **Загальні**, **Позиція**, **Інфо** без нескінченного скролу в Quick Access Menu.
 
 ### 📥 Встановлення

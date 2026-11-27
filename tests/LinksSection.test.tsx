@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const callMock = vi.fn();
@@ -30,6 +30,7 @@ vi.mock("../src/translations", () => ({
 }));
 
 import { LinksSection } from "../src/components/LinksSection";
+import { resolveTargetLanguage } from "../src/languages";
 
 describe("LinksSection version-only view", () => {
   const openUrl = vi.fn();
@@ -70,5 +71,16 @@ describe("LinksSection version-only view", () => {
     await waitFor(() => {
       expect(screen.getByText(/Version: v1.0.0/i)).toBeTruthy();
     });
+  });
+
+  it("shows the English guide and only the selected language's resources", () => {
+    callMock.mockResolvedValue("1.0.0");
+    render(React.createElement(LinksSection, { lang: "en", openUrl, targetLang: resolveTargetLanguage("tr") }));
+
+    fireEvent.click(screen.getByText("Translation guide (English)"));
+    expect(openUrl).toHaveBeenCalledWith("https://github.com/yataktyni/decky-lang-badge#installing-community-translations-on-steam-deck");
+    expect(screen.getByText("Sirius Çeviri")).toBeTruthy();
+    expect(screen.getByText("Steam Deck Türkçe Yama Rehberi")).toBeTruthy();
+    expect(screen.queryByText("Tribo Gamer")).toBeNull();
   });
 });

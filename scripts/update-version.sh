@@ -10,6 +10,7 @@
 set -e
 
 BUMP_TYPE="${1:-patch}"
+PRINT_ONLY="${2:-}"
 
 # Validate bump type
 if [[ ! "$BUMP_TYPE" =~ ^(patch|minor|major)$ ]]; then
@@ -20,7 +21,10 @@ fi
 
 # Read current version from package.json
 CURRENT_VERSION=$(jq -r .version < package.json)
-echo "📄 Current version: $CURRENT_VERSION"
+if [[ ! "$CURRENT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+    echo "Invalid version: $CURRENT_VERSION" >&2
+    exit 1
+fi
 
 # Split version into components
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
@@ -42,6 +46,11 @@ case "$BUMP_TYPE" in
 esac
 
 NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+if [[ "$PRINT_ONLY" == "--print" ]]; then
+    echo "$NEW_VERSION"
+    exit 0
+fi
+echo "📄 Current version: $CURRENT_VERSION"
 echo "📦 New version: $NEW_VERSION ($BUMP_TYPE bump)"
 
 # Update package.json

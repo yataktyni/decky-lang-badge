@@ -104,6 +104,10 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🇹🇷",
         nativeName: "Türkçe",
         englishName: "Turkish",
+        communityLinks: [
+            { label: "Sirius Çeviri", url: "https://siriusceviri.com/", kind: "portal" },
+            { label: "Steam Deck Türkçe Yama Rehberi", url: "https://www.youtube.com/watch?v=lgaaOG7Avw8", kind: "video" },
+        ],
         storeMatch: includesToken("turkish"),
         badgeLabels: { official: "Resmi", none: "Yok" },
     },
@@ -115,6 +119,7 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         englishName: "Portuguese (Brazil)",
         communityLinks: [
             { label: "Tribo Gamer", url: "https://tribogamer.com/", kind: "portal" },
+            { label: "Traduções e mods no Steam Deck", url: "https://www.youtube.com/watch?v=Gcs0ZD4eaWU", kind: "video" },
         ],
         storeMatch: includesToken("portuguese - brazil"),
         badgeLabels: { official: "Oficial", none: "Nenhuma" },
@@ -135,6 +140,9 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🇪🇸",
         nativeName: "Español",
         englishName: "Spanish (Spain)",
+        communityLinks: [
+            { label: "TraduSquare", url: "https://tradusquare.es/", kind: "portal" },
+        ],
         storeMatch: (langs) =>
             langs.includes("spanish - spain") || /\bspanish(?!\s*-\s*latin america)/i.test(langs),
         badgeLabels: { official: "Oficial", none: "Ninguna" },
@@ -145,6 +153,9 @@ export const SUPPORTED_LANGUAGES: readonly LanguageConfig[] = [
         flag: "🌎",
         nativeName: "Español (LatAm)",
         englishName: "Spanish (Latin America)",
+        communityLinks: [
+            { label: "TraduSquare", url: "https://tradusquare.es/", kind: "portal" },
+        ],
         storeMatch: includesToken("spanish - latin america"),
         badgeLabels: { official: "Oficial", none: "Ninguna" },
     },

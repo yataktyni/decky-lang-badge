@@ -26,15 +26,28 @@ if [[ "$BUMP_TYPE" == "--help" || "$BUMP_TYPE" == "-h" ]]; then
     exit 0
 fi
 
-# If bump type specified, update version first
-if [[ -n "$BUMP_TYPE" ]]; then
-    echo "📦 Bumping version ($BUMP_TYPE)..."
-    bash "$SCRIPT_DIR/update-version.sh" "$BUMP_TYPE"
-    echo ""
+if [[ "$(git branch --show-current)" != "main" ]]; then
+    echo "Release must be created from main."
+    exit 1
 fi
 
-# Get current version from package.json
+if [[ -n "$(git status --porcelain)" ]]; then
+    echo "Commit or stash all changes before creating a release."
+    exit 1
+fi
+
 VERSION=$(jq -r .version < package.json)
+if [[ "$(jq -r .version < plugin.json)" != "$VERSION" ]]; then
+    echo "package.json and plugin.json versions must match."
+    exit 1
+fi
+
+if [[ -n "$BUMP_TYPE" ]]; then
+    VERSION=$(bash "$SCRIPT_DIR/update-version.sh" "$BUMP_TYPE" --print)
+elif [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+    echo "Invalid version: $VERSION"
+    exit 1
+fi
 TAG="v$VERSION"
 
 echo "🔍 Checking if tag $TAG exists..."
@@ -46,7 +59,22 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
     exit 1
 fi
 
+REMOTE_REFS=$(git ls-remote --exit-code origin refs/heads/main "refs/tags/$TAG")
+REMOTE_MAIN=$(printf '%s\n' "$REMOTE_REFS" | awk '$2 == "refs/heads/main" {print $1}')
+if [[ "$REMOTE_MAIN" != "$(git rev-parse HEAD)" ]]; then
+    echo "Local main must match origin/main before creating a release."
+    exit 1
+fi
+if printf '%s\n' "$REMOTE_REFS" | grep -q "refs/tags/$TAG$"; then
+    echo "Tag $TAG already exists on origin."
+    exit 1
+fi
+
 echo "🏷️  Creating tag: $TAG"
+
+if [[ -n "$BUMP_TYPE" ]]; then
+    bash "$SCRIPT_DIR/update-version.sh" "$BUMP_TYPE"
+fi
 
 # Stage and commit version changes if any
 if [[ -n "$(git status --porcelain package.json plugin.json 2>/dev/null)" ]]; then
@@ -56,9 +84,7 @@ fi
 
 # Create and push tag
 git tag "$TAG"
-git push origin main --tags
+git push --atomic origin main "refs/tags/$TAG"
 
 echo ""
-echo "✅ Released $TAG!"
-echo "   - Tag pushed to origin"
-echo "   - Decky CI will build and publish automatically"
+echo "✅ Pushed $TAG. GitHub Actions will test and publish the release."
