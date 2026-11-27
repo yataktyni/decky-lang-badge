@@ -3,8 +3,10 @@ import { call, fetchNoCors, routerHook } from "@decky/api";
 import { findModuleExport } from "@decky/ui";
 import { BehaviorSubject } from "rxjs";
 import { SettingsContext } from "../hooks/useSettings";
-import { LbkTranslationsResult } from "../hooks/useLbkTranslations";
-import { isOfficialLanguageInStoreText, resolveTargetLanguage } from "../languages";
+import { getCachedBadgeStatuses } from "../hooks/useBadgeStatus";
+import { LbkTranslationsResult, getLbkCatalogMap, lbkRefresh$ } from "../hooks/useLbkTranslations";
+import { SUPPORTED_LANGUAGES, isOfficialLanguageInStoreText, resolveTargetLanguage } from "../languages";
+import { installStoreTiles } from "./StoreTiles";
 import { t, resolveUiLanguage } from "../translations";
 import { urlifyGameName, searchKuli, fetchWithTimeout, isValidKuliGamePage, getKuliStatusFromHtml } from "../utils";
 import { logger } from "../logger";
@@ -38,6 +40,7 @@ let historyUnlisten: (() => void) | null = null;
 let tabPollInterval: ReturnType<typeof setInterval> | null = null;
 let messageId = 1;
 let wsReady = false;
+let tilesGeneration = 0;
 
 interface Tab {
     id: string;
@@ -237,6 +240,30 @@ function removeBadgeFromStore() {
     }));
 }
 
+async function refreshStoreTiles(): Promise<void> {
+    const generation = ++tilesGeneration;
+    const socket = storeWebSocket;
+    const settings = SettingsContext.value;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !wsReady) return;
+    if (!settings.showOnStore || !settings.showOnThumbnails) {
+        socket.send(JSON.stringify({ id: messageId++, method: "Runtime.evaluate", params: { expression: "window.__localizationTilesCleanup?.()" } }));
+        return;
+    }
+    const language = resolveTargetLanguage(settings.targetLanguage);
+    const catalog = language.hasUkrainianCommunity && settings.enableLbkIntegration
+        ? (await getLbkCatalogMap()).games : {};
+    if (generation !== tilesGeneration || socket !== storeWebSocket || settings !== SettingsContext.value || !isStoreMounted || !wsReady) return;
+    const names = SUPPORTED_LANGUAGES.map((item) => item.englishName.toLowerCase().replace(" (", " - ").replace(")", ""));
+    const languages = [...new Set([...names, "spanish", "portuguese", "portuguese - portugal"].filter(language.storeMatch))];
+    const uiLang = resolveUiLanguage(settings.targetLanguage, language);
+    const labels = { official: t("official", uiLang), community: t("community", uiLang), installed: t("lbk_installed", uiLang) };
+    const config = { flag: language.flag, languages, position: settings.thumbnailPosition, catalog, cached: getCachedBadgeStatuses(language.code), labels };
+    socket.send(JSON.stringify({
+        id: messageId++, method: "Runtime.evaluate",
+        params: { expression: `(${installStoreTiles.toString()})(${JSON.stringify(config)})` },
+    }));
+}
+
 export function extractAppIdFromUrl(url: string): string {
     if (!url.includes("store.steampowered.com/app/")) {
         return "";
@@ -288,6 +315,7 @@ function attachStoreWebSocket(storeTab: Tab): void {
         setTimeout(() => {
             if (ws !== storeWebSocket || !isStoreMounted || ws.readyState !== WebSocket.OPEN) return;
             wsReady = true;
+            void refreshStoreTiles();
             const currentAppId = storeAppId$.value;
             if (currentAppId) {
                 void injectBadgeIntoStore(currentAppId);
@@ -306,7 +334,12 @@ function attachStoreWebSocket(storeTab: Tab): void {
                         ? data.params?.url
                         : null;
             if (navUrl && navUrl.includes("store.steampowered.com")) {
-                setTimeout(() => updateAppIdFromUrl(navUrl, true), 450);
+                const ws = storeWebSocket;
+                setTimeout(() => {
+                    if (ws !== storeWebSocket || !isStoreMounted) return;
+                    updateAppIdFromUrl(navUrl, true);
+                    void refreshStoreTiles();
+                }, 450);
             }
         } catch {
             // ignore
@@ -354,7 +387,11 @@ async function connectToStoreDebugger(retries = 10): Promise<void> {
 }
 
 function disconnectStoreDebugger() {
+    tilesGeneration++;
     removeBadgeFromStore();
+    if (storeWebSocket?.readyState === WebSocket.OPEN) {
+        storeWebSocket.send(JSON.stringify({ id: messageId++, method: "Runtime.evaluate", params: { expression: "window.__localizationTilesCleanup?.()" } }));
+    }
     isStoreMounted = false;
     wsReady = false;
     currentWsUrl = null;
@@ -419,6 +456,7 @@ export function initStorePatch(): () => void {
 
     const settingsSub = SettingsContext.subscribe(() => {
         if (isStoreMounted && wsReady) {
+            void refreshStoreTiles();
             if (!SettingsContext.value.showOnStore) {
                 removeBadgeFromStore();
             } else if (storeAppId$.value) {
@@ -426,11 +464,13 @@ export function initStorePatch(): () => void {
             }
         }
     });
+    const lbkSub = lbkRefresh$.subscribe(() => { if (isStoreMounted && wsReady) void refreshStoreTiles(); });
 
     const cleanup = () => {
         routerHook.removePatch("/steamweb", storeRoutePatch);
         routerHook.removePatch("/externalweb", externalRoutePatch);
         settingsSub.unsubscribe();
+        lbkSub.unsubscribe();
         if (historyUnlisten) {
             historyUnlisten();
             historyUnlisten = null;

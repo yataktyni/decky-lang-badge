@@ -93,6 +93,18 @@ export function getCachedBadgeStatus(appId: string, langCode?: string): BadgeSta
     return entry.status;
 }
 
+export function getCachedBadgeStatuses(langCode: string): Record<string, BadgeStatus> {
+    const prefix = `${langCode}:`;
+    const result: Record<string, BadgeStatus> = {};
+    for (const key of Object.keys(statusCache)) {
+        if (!key.startsWith(prefix)) continue;
+        const appId = key.slice(prefix.length);
+        const status = getCachedBadgeStatus(appId, langCode);
+        if (status) result[appId] = status;
+    }
+    return result;
+}
+
 export function clearBadgeStatusCache(): void {
     for (const key of Object.keys(statusCache)) {
         delete statusCache[key];
