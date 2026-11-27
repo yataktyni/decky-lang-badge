@@ -209,6 +209,14 @@ pytest -q
 
 ---
 
+## 📊 Project statistics / Статистика проєкту
+
+[![Release downloads / Завантаження релізів](https://img.shields.io/github/downloads/yataktyni/decky-lang-badge/total)](https://github.com/yataktyni/decky-lang-badge/releases)
+
+[![Star history / Історія зірок](https://repostars.dev/api/embed?repo=yataktyni/decky-lang-badge&theme=dark)](https://repostars.dev/?repos=yataktyni/decky-lang-badge&theme=dark)
+
+---
+
 ## 📄 License
 
 Copyright © 2025–2026 Yataktyni.
