@@ -40,6 +40,7 @@ describe("translations", () => {
     expect(resolveUiLanguage("de", resolveTargetLanguage("de"), "uk-UA")).toBe("de");
     expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "uk-UA"), "uk-UA")).toBe("uk");
     expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "pl-PL"), "pl-PL")).toBe("pl");
+    expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "es-CO"), "es-CO")).toBe("es-419");
     expect(resolveUiLanguage("auto", resolveTargetLanguage("auto", "en-US"), "en-US")).toBe("en");
   });
 });

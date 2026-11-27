@@ -16,7 +16,7 @@ A **Decky Loader** plugin for Steam Deck that displays game localization badges 
 - **🌐 29 Steam Languages + Full UI Translation** — automatically detects your Steam Deck UI language (or lets you pick any of 29 languages manually) and translates the entire plugin interface and badge statuses.
 - **🖼️ Library & Home Cover Badges** — compact corner badges on game covers using instant local Steam `bitfield_supported_languages` detection (zero API spam), compatible with Home, Library, Search, Carousel/Gallery themes, and configurable to any of the 4 corners.
 - **🎮 Game Page Badge** — clear status indicator (**Official**, **Installed**, **Community**, **None**) with customizable position, X/Y offsets, and automatic ProtonDB badge avoidance.
-- **🛒 Steam Store Overlay** — automatically injects the localization badge on Steam Store pages inside Gaming Mode.
+- **🛒 Steam Store Overlay**: displays a localization badge on individual game pages in Gaming Mode.
 - **🧩 Deep Ukrainian Community Integration (for 🇺🇦)** — detects local [LBK Launcher](https://lbklauncher.com/) database (`lbk.db`) & installed translations, shows `✓` (installed), `⬆` (translation update available), and `🎙` (voiceover available), opens an in-Steam modal with team/version/progress details, launches LBK Launcher visibly inside Gaming Mode, and supports 1-click Flatpak installation right from settings; falls back to [Kuli.com.ua](https://kuli.com.ua/).
 - **🌍 Community Portals**: quick links in the Info tab for selected translation communities and guides for the chosen language.
 - **🧭 Compact 3-Tab Settings UI** — organized into **General**, **Layout**, and **Info** tabs so you never have to scroll through long lists in the Quick Access Menu.
@@ -120,7 +120,7 @@ pytest -q
 - **🌐 29 мов Steam + повний переклад інтерфейсу** — автоматичне визначення мови Steam Deck або ручний вибір у налаштуваннях; інтерфейс плагіна та підписи статусів одразу перекладаються на вибрану мову.
 - **🖼️ Мініатюри у Бібліотеці та на Головній** — компактні позначки на обкладинках ігор із миттєвою локальною перевіркою через `bitfield_supported_languages` Steam (працює на Головній, у Бібліотеці, Пошуку та з темами каруселі/галереї, вибір будь-якого з 4 кутів).
 - **🎮 Бейдж на сторінці гри** — чіткий статус (**Офіційна**, **Встановлено**, **Спільнота**, **Відсутня**) із гнучкими координатами X/Y та автоматичним уникненням накладання на ProtonDB.
-- **🛒 Відображення в Steam Store** — автоматично показує бейдж локалізації на сторінках магазину в Gaming Mode.
+- **🛒 Відображення в Steam Store**: показує бейдж локалізації на сторінках окремих ігор у Gaming Mode.
 - **🧩 Інтеграція з LBK Launcher та Kuli.com.ua (для 🇺🇦)** — читає локальну базу `lbk.db` і встановлені українізатори, показує `✓` (встановлено), `⬆` (є оновлення перекладу) та `🎙` (є українська озвучка), відкриває модальне вікно з командами/прогресом, запускає LBK Launcher прямо в Gaming Mode та вміє встановлювати LBK Launcher (Flatpak) в один клік із налаштувань плагіна.
 - **🌍 Портали спільнот**: швидкі посилання у вкладці «Інфо» на окремі спільноти перекладачів та посібники для вибраної мови.
 - **🧭 Компактні налаштування у 3 табах** — **Загальні**, **Позиція**, **Інфо** без нескінченного скролу в Quick Access Menu.

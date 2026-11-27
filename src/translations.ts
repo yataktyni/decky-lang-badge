@@ -1,5 +1,5 @@
 // decky-lang-badge/src/translations.ts
-import { LanguageConfig, TargetLanguageSetting } from "./languages";
+import { LanguageConfig, TargetLanguageSetting, detectLanguageFromLocale } from "./languages";
 
 type TranslationDict = Record<string, string>;
 
@@ -1190,7 +1190,7 @@ export function getSupportedLanguage(rawLocale?: string): string {
     if (lower === "pt-br") return "pt-BR";
     if (lower.startsWith("zh-tw") || lower.startsWith("zh-hk") || lower.includes("hant")) return "zh-TW";
     if (lower.startsWith("zh")) return "zh-CN";
-    if (lower === "es-419" || lower === "es-mx" || lower === "es-ar") return "es-419";
+    if (lower.startsWith("es-")) return detectLanguageFromLocale(lower).code;
     if (lower.startsWith("nb") || lower.startsWith("nn")) return "no";
 
     const base = lower.split("-")[0];

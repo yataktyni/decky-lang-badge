@@ -76,6 +76,8 @@ async function injectBadgeIntoStore(appId: string) {
     }
 
     log.info(`Injecting badge for AppID: ${appId}`);
+    const socket = storeWebSocket;
+    const settings = SettingsContext.value;
 
     try {
         const targetLang = resolveTargetLanguage(SettingsContext.value.targetLanguage);
@@ -168,7 +170,7 @@ async function injectBadgeIntoStore(appId: string) {
             : "";
 
         // Abort if user navigated to another app while we were fetching
-        if (storeAppId$.value !== appId) return;
+        if (storeAppId$.value !== appId || storeWebSocket !== socket || SettingsContext.value !== settings || !SettingsContext.value.showOnStore) return;
 
         const injectScript = `
         (function() {
@@ -206,7 +208,7 @@ async function injectBadgeIntoStore(appId: string) {
         })();
       `;
 
-        storeWebSocket.send(JSON.stringify({
+        socket.send(JSON.stringify({
             id: messageId++,
             method: "Runtime.evaluate",
             params: { expression: injectScript }
@@ -279,10 +281,12 @@ function attachStoreWebSocket(storeTab: Tab): void {
 
     storeWebSocket.onopen = (event) => {
         const ws = event.target as WebSocket;
+        if (ws !== storeWebSocket || !isStoreMounted) return;
         ws.send(JSON.stringify({ id: messageId++, method: "Page.enable" }));
         ws.send(JSON.stringify({ id: messageId++, method: "Runtime.enable" }));
 
         setTimeout(() => {
+            if (ws !== storeWebSocket || !isStoreMounted || ws.readyState !== WebSocket.OPEN) return;
             wsReady = true;
             const currentAppId = storeAppId$.value;
             if (currentAppId) {
@@ -292,7 +296,7 @@ function attachStoreWebSocket(storeTab: Tab): void {
     };
 
     storeWebSocket.onmessage = (event) => {
-        if (!isStoreMounted) return;
+        if (!isStoreMounted || event.target !== storeWebSocket) return;
         try {
             const data = JSON.parse(event.data);
             const navUrl =
@@ -309,7 +313,8 @@ function attachStoreWebSocket(storeTab: Tab): void {
         }
     };
 
-    storeWebSocket.onclose = () => {
+    storeWebSocket.onclose = (event) => {
+        if (event.target !== storeWebSocket) return;
         storeWebSocket = null;
         currentWsUrl = null;
         wsReady = false;
